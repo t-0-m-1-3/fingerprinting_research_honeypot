@@ -1,0 +1,49 @@
+# JA3 Scanner Detection Rules
+# TLS fingerprint-based scanner identification
+# Generated from baseline scans against honeypot (2026-09-14)
+#
+# These rules use the ja3.hash sticky buffer (Suricata 4.1+).
+# SID range: 9000001-9000010 (local custom rules)
+#
+# Deploy to your Suricata local.rules file, then reload rules.
+
+# --- HIGH CONFIDENCE: nmap ssl-enum-ciphers ---
+# nmap ssl-enum-ciphers produces a distinctive primary JA3 plus 55+ unique
+# cipher-probing JA3 hashes in rapid succession. The primary fingerprint alone
+# is not seen in any standard browser or library.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM nmap ssl-enum-ciphers primary probe (JA3)"; ja3.hash; content:"f334454dc96768f9612d478fd7c91fe3"; classtype:network-scan; sid:9000001; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- HIGH CONFIDENCE: nuclei / Go crypto/tls ---
+# Go's crypto/tls library produces a consistent JA3 across all Go-based
+# security tools: nuclei, httpx, gobuster, ffuf, subfinder, etc.
+# Medium severity because legitimate Go services (Prometheus, Consul,
+# Terraform) share this fingerprint. Correlate with request volume.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM Go crypto/tls client detected (nuclei/httpx/gobuster)"; ja3.hash; content:"11a384388ad36777e1a2e121495037fe"; classtype:network-scan; sid:9000002; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- MEDIUM CONFIDENCE: Python ssl module ---
+# Python's ssl.create_default_context() fingerprint. Shared by urllib,
+# requests, httpx, scrapy, and all Python HTTP libraries.
+# Common in both legitimate automation and malicious bots/scrapers.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM Python ssl module client detected"; ja3.hash; content:"d12b36d1ef0d9915f23e2f80fc938d6b"; classtype:network-scan; sid:9000003; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- MEDIUM CONFIDENCE: wget (GnuTLS) ---
+# wget compiled with GnuTLS has a distinct fingerprint from OpenSSL clients.
+# Longer cipher suite list is a distinguishing feature.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM wget/GnuTLS client detected"; ja3.hash; content:"0a35e0b374f9077f46115637ab06ae88"; classtype:network-scan; sid:9000004; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- LOW CONFIDENCE: curl (OpenSSL) ---
+# curl with OpenSSL is extremely common. This rule is informational only —
+# useful for correlation with other indicators, not standalone alerting.
+# Consider enabling only on high-value targets.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM curl/OpenSSL client detected"; ja3.hash; content:"0659743d0a8904909448456a6dfa4b06"; classtype:network-scan; sid:9000005; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- BEHAVIORAL: nmap cipher enumeration burst ---
+# Threshold rule: if we see 10+ unique TLS handshakes from the same source
+# in 60 seconds, it's likely cipher enumeration (nmap, testssl, sslscan).
+# This catches nmap even if the primary JA3 changes between versions.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM TLS cipher enumeration burst (10+ handshakes in 60s)"; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 60; classtype:network-scan; sid:9000006; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)
+
+# --- nmap cipher probe variants (SSLv3/TLS1.0 legacy) ---
+# nmap sends probes with TLS version 768 (SSLv3/TLS1.0) and obsolete ciphers.
+# No modern browser or client sends TLS 1.0 ClientHellos anymore.
+alert tls $EXTERNAL_NET any -> $HOME_NET any (msg:"QUIET-ROOM nmap cipher probe - legacy TLS 1.0 (JA3)"; ja3.hash; content:"ee0799c323d74129b75b633dcfd41593"; classtype:network-scan; sid:9000007; rev:1; metadata:created_at 2026_09_14, updated_at 2026_09_14, quiet_room phase28;)

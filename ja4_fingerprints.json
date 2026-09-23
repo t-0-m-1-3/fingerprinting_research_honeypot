@@ -1,0 +1,280 @@
+{
+  "version": "2.0.0",
+  "generated": "2026-09-14",
+  "description": "JA3/JA4 TLS fingerprint database for scanner/bot detection. Built from baseline scans against the Quiet Room honeypot (local VLAN 47 + AWS public instance).",
+  "scan_environments": {
+    "local": {
+      "target": "10.47.1.148:8443 (quiet-room.homelab.local)",
+      "pcap": "scan-baseline-20260914-124521.pcap",
+      "capture_interface": "eth0 on LXC 148",
+      "source_ip": "192.168.1.45",
+      "tls_cert": "self-signed (no SNI)",
+      "notes": "Local scans have no SNI extension — JA4 prefix uses 'i' flag and has 1 fewer extension than AWS scans"
+    },
+    "aws": {
+      "target": "32.192.255.152:443 (32-192-255-152.sslip.io)",
+      "pcap": "llm-scans.pcap",
+      "capture_interface": "eth0 on EC2 i-0d31a4cf0ad48813c",
+      "source_ip": "68.161.211.69 (workstation), 158.69.55.82/158.69.117.45/193.239.237.77 (WebFetch)",
+      "tls_cert": "Let's Encrypt (sslip.io, SNI present)",
+      "notes": "AWS scans have SNI — JA4 prefix uses 'd' flag. Cipher and extension hashes remain stable across environments."
+    }
+  },
+  "ja4_format_reference": {
+    "description": "JA4 = {proto}{version}{sni}{cipher_count}{ext_count}{alpn}_{cipher_hash}_{ext_hash}",
+    "fields": {
+      "proto": "t=TCP, q=QUIC",
+      "version": "13=TLS1.3, 12=TLS1.2, 11=TLS1.1, 10=TLS1.0, s3=SSLv3",
+      "sni": "d=domain(SNI present), i=IP(no SNI)",
+      "cipher_count": "2-digit count of cipher suites offered",
+      "ext_count": "2-digit count of TLS extensions",
+      "alpn": "h1=HTTP/1.1, h2=HTTP/2, hq=HTTP/3, 00=no ALPN",
+      "cipher_hash": "truncated SHA-256 of sorted cipher suite list",
+      "ext_hash": "truncated SHA-256 of sorted extension list"
+    },
+    "key_insight": "The cipher_hash and ext_hash (2nd and 3rd components) are stable across environments. The prefix changes based on SNI presence and ALPN negotiation. For environment-agnostic detection, match on cipher_hash + ext_hash."
+  },
+  "fingerprints": [
+    {
+      "tool": "curl",
+      "version": "curl/8.11.1 (OpenSSL 3.4.1)",
+      "platform": "NixOS Linux x86_64",
+      "tls_library": "OpenSSL 3.4.1",
+      "ja3_hash": {
+        "local": "0659743d0a8904909448456a6dfa4b06",
+        "aws": "db8a6f4f5df82ccc66d45af0fdd5a432"
+      },
+      "ja4": {
+        "local": "t13i3011h2_1d37bd780c83_882d495ac381",
+        "aws": "t13d3012h2_1d37bd780c83_882d495ac381"
+      },
+      "ja4_components": {
+        "cipher_hash": "1d37bd780c83",
+        "ext_hash": "882d495ac381",
+        "cipher_count": 30,
+        "alpn": "h2"
+      },
+      "sessions_observed": {"local": 5, "aws": 12},
+      "behavior": "One TLS handshake per HTTP request. Consistent fingerprint. Requests HTTP/2 via ALPN.",
+      "detection_confidence": "high",
+      "notes": "Standard OpenSSL fingerprint. Also matches other OpenSSL-based CLI tools. JA3 changes between local/AWS due to SNI extension, but JA4 cipher/ext hashes remain stable."
+    },
+    {
+      "tool": "wget",
+      "version": "wget/1.25.0 (GnuTLS 3.8.9)",
+      "platform": "NixOS Linux x86_64",
+      "tls_library": "GnuTLS 3.8.9",
+      "ja3_hash": {
+        "local": "0a35e0b374f9077f46115637ab06ae88",
+        "aws": "00fe6f3d4d8c85a0cba0dfa7c6a23cdc"
+      },
+      "ja4": {
+        "local": "t13i681100_13e0e9e1c501_89ab6efea773",
+        "aws": "t13d681200_13e0e9e1c501_89ab6efea773"
+      },
+      "ja4_components": {
+        "cipher_hash": "13e0e9e1c501",
+        "ext_hash": "89ab6efea773",
+        "cipher_count": 68,
+        "alpn": "none"
+      },
+      "sessions_observed": {"local": 3, "aws": 3},
+      "behavior": "One TLS handshake per request. GnuTLS offers 68 cipher suites — the largest of any tool tested. No ALPN.",
+      "detection_confidence": "high",
+      "notes": "GnuTLS fingerprint with unusually large cipher suite list (68 including CAMELLIA, ARIA). Unique among common tools."
+    },
+    {
+      "tool": "python3",
+      "version": "Python 3.12 (ssl module / OpenSSL 3.4.1)",
+      "platform": "NixOS Linux x86_64",
+      "tls_library": "OpenSSL 3.4.1 (via Python ssl module)",
+      "ja3_hash": {
+        "local": "d12b36d1ef0d9915f23e2f80fc938d6b",
+        "aws": "f21f8e6c2a3c0c78abd85a0deacdc2c3"
+      },
+      "ja4": {
+        "local": "t13i171000_ab0a1bf427ad_8e6e362c5eac",
+        "aws": "t13d171100_ab0a1bf427ad_8e6e362c5eac"
+      },
+      "ja4_components": {
+        "cipher_hash": "ab0a1bf427ad",
+        "ext_hash": "8e6e362c5eac",
+        "cipher_count": 17,
+        "alpn": "none"
+      },
+      "sessions_observed": {"local": 10, "aws": 5},
+      "behavior": "Same fingerprint for urllib, http.client, requests, httpx — all use Python ssl module. Smallest cipher set (17) of any tested tool.",
+      "detection_confidence": "high",
+      "notes": "Python ssl.create_default_context() aggressively filters cipher suites. One of the most common bot/scraper fingerprints on the internet."
+    },
+    {
+      "tool": "nmap",
+      "version": "nmap 7.95 (ssl-enum-ciphers script)",
+      "platform": "NixOS Linux x86_64",
+      "tls_library": "NSE OpenSSL bindings",
+      "ja3_hash": {
+        "local": "f334454dc96768f9612d478fd7c91fe3"
+      },
+      "ja4": {
+        "local_primary": "t13i711000_8f28d1f76561_8e6e362c5eac",
+        "cipher_probe_samples": [
+          "t12i640300_e7b476f9520b_99875426d20b",
+          "t11i640200_e7b476f9520b_33a13ba74d1c",
+          "t10i640200_e7b476f9520b_33a13ba74d1c",
+          "ts3i640000_e7b476f9520b_000000000000",
+          "t13i190500_9c2f387b437f_05020bd715f8",
+          "t12i020300_2de2c0b41c0f_99875426d20b",
+          "t12i010300_ba72b8082249_99875426d20b"
+        ]
+      },
+      "ja4_components": {
+        "primary_cipher_hash": "8f28d1f76561",
+        "primary_ext_hash": "8e6e362c5eac",
+        "primary_cipher_count": 71,
+        "alpn": "none"
+      },
+      "sessions_observed": {"local": 90},
+      "behavior": "Primary probe with 71 ciphers, then ~55 cipher-enumeration probes across TLS 1.0/1.1/1.2/1.3/SSLv3. Each probe has a unique JA4 due to different cipher subsets. The burst of many unique JA4 prefixes (t10/t11/t12/t13/ts3) from one source is a dead giveaway.",
+      "detection_confidence": "very_high",
+      "detection_signals": [
+        "Primary JA4 cipher_hash 8f28d1f76561 with 71 ciphers",
+        "55+ unique JA4 fingerprints from single source within seconds",
+        "SSLv3 probes (ts3i*) — no legitimate modern client uses SSLv3",
+        "TLS 1.0 probes (t10i*) — extremely rare in modern traffic",
+        "Extension hash 99875426d20b shared across all TLS 1.2 cipher probes"
+      ],
+      "notes": "Trivially detectable: 55+ distinct JA4s in rapid succession, including SSLv3 and TLS 1.0 probes. The primary probe's 71-cipher suite count is also abnormally high."
+    },
+    {
+      "tool": "nuclei",
+      "version": "nuclei v3.3.7 (Go 1.23)",
+      "platform": "NixOS Linux x86_64",
+      "tls_library": "Go crypto/tls",
+      "ja3_hash": {
+        "local": "11a384388ad36777e1a2e121495037fe"
+      },
+      "ja4": {
+        "local": "t13i251000_b78ed14e2fd0_ab7e3b40a677"
+      },
+      "ja4_components": {
+        "cipher_hash": "b78ed14e2fd0",
+        "ext_hash": "ab7e3b40a677",
+        "cipher_count": 25,
+        "alpn": "none"
+      },
+      "sessions_observed": {"local": 377},
+      "behavior": "Single consistent fingerprint across all 377 requests. 377 handshakes in ~3 seconds. No ALPN.",
+      "detection_confidence": "very_high",
+      "notes": "Go crypto/tls fingerprint (25 ciphers, no ALPN). Shared by nuclei, gobuster, ffuf, subfinder, and other Go security tools. Different from WebFetch's Go fingerprint (13 ciphers) — nuclei uses an older Go TLS configuration."
+    },
+    {
+      "tool": "claude_webfetch",
+      "version": "Claude Code WebFetch (Anthropic infrastructure)",
+      "platform": "Anthropic cloud (Go-based proxy)",
+      "tls_library": "Go crypto/tls",
+      "ja3_hash": {
+        "aws": "9b7dcdf3f997f1fb7b4409c94cb7ef36"
+      },
+      "ja4": {
+        "aws": "t13d131100_f57a46bbacb6_e5728521abd4"
+      },
+      "ja4_raw": "t13d131100_1301,1302,1303,c009,c00a,c013,c014,c02b,c02c,c02f,c030,cca8,cca9_0005,000a,000b,000d,0012,0017,002b,0032,0033,ff01_0804,0403,0807,0805,0806,0401,0501,0601,0503,0603,0201,0203",
+      "ja4_components": {
+        "cipher_hash": "f57a46bbacb6",
+        "ext_hash": "e5728521abd4",
+        "cipher_count": 13,
+        "alpn": "none"
+      },
+      "source_ips": ["158.69.55.82", "158.69.117.45", "193.239.237.77"],
+      "sessions_observed": {"aws": 89},
+      "behavior": "89 TLS sessions across 3 source IPs. Consistent fingerprint. All sessions to same domain. Go crypto/tls but with only 13 ciphers — a much more restricted set than nuclei's 25.",
+      "detection_confidence": "high",
+      "notes": "Anthropic's WebFetch uses Go crypto/tls but with a modern, minimal cipher suite (13 ciphers including only TLS 1.3 and ECDHE suites). Distinct from nuclei/gobuster Go fingerprints which offer 25 ciphers including legacy suites. The cipher_hash f57a46bbacb6 is unique to this Go TLS configuration."
+    }
+  ],
+  "wild_scanner_fingerprints": {
+    "description": "JA4 fingerprints observed from wild internet scanners hitting the AWS honeypot within minutes of deployment",
+    "coordinated_nmap_scanner": {
+      "source_ips": ["136.124.34.5", "176.119.150.216", "24.199.113.99", "34.96.60.168", "62.210.93.92"],
+      "total_sessions": 87,
+      "ja4_samples": [
+        "t13d6912hq_ea0618708e31_1da015a32102",
+        "t12d6912hq_ea0618708e31_1da015a32102",
+        "t12d6912h9_ea0618708e31_1da015a32102",
+        "t12d3411h9_a634f799a498_52c4d8bb91c9",
+        "t11d6911h9_ea0618708e31_52c4d8bb91c9",
+        "t13d6412h9_0f757fa8abd0_1da015a32102"
+      ],
+      "behavior": "5 IPs performing identical nmap-style cipher enumeration within the same 2-minute window. Same cipher suites but randomized TLS extension ordering — active JA3 evasion. JA4 cipher hashes (ea0618708e31) remain consistent across the coordinated scan.",
+      "notes": "JA3 randomization detected: same cipher suites, randomized extensions. JA4's sorted hashing partially defeats this — cipher_hash ea0618708e31 is shared across many of these probes."
+    },
+    "persistent_go_scanner": {
+      "source_ips": ["154.28.229.21", "45.153.102.164"],
+      "ja4": {
+        "154.28.229.21": "t13d131100_f57a46bbacb6_e5728521abd4",
+        "45.153.102.164": "t13d131000_f57a46bbacb6_e7c285222651"
+      },
+      "total_sessions": 50,
+      "notes": "Go crypto/tls with same cipher_hash as WebFetch (f57a46bbacb6) but from known scanner IPs. Demonstrates that Go's cipher_hash alone cannot distinguish legitimate from malicious Go clients — behavioral analysis needed."
+    },
+    "misc_scanners": {
+      "description": "Various single-session probes from different IPs",
+      "ja4_samples": [
+        {"ip": "103.196.9.68", "ja4": "t13d1517h2_8daaf6152771_cb7bf5808d99"},
+        {"ip": "185.10.7.38", "ja4": "t13d1518h2_8daaf6152771_e2d80978ab2e"},
+        {"ip": "74.7.227.167", "ja4": "t13d1011h2_61a7ad8aa9b6_d4929ced8316"}
+      ],
+      "notes": "Single-request probes. Cipher hash 8daaf6152771 appears across multiple IPs — likely a shared scanning framework."
+    }
+  },
+  "detection_rules": {
+    "description": "Detection logic for Security Onion / Suricata / Arkime. JA4 inner hashes are preferred over full JA4 strings for environment-agnostic matching.",
+    "ja4_based": [
+      {
+        "name": "SCAN-JA4-NMAP-PRIMARY",
+        "match": "ja4_cipher_hash == '8f28d1f76561' AND cipher_count >= 70",
+        "severity": "high",
+        "notes": "nmap ssl-enum-ciphers primary probe (71 ciphers)"
+      },
+      {
+        "name": "SCAN-JA4-NMAP-SSLV3",
+        "match": "ja4 starts with 'ts3'",
+        "severity": "high",
+        "notes": "SSLv3 ClientHello — no legitimate modern client uses SSLv3"
+      },
+      {
+        "name": "SCAN-JA4-NMAP-TLS10",
+        "match": "ja4 starts with 't10'",
+        "severity": "medium",
+        "notes": "TLS 1.0 ClientHello — very rare in modern traffic, usually cipher enumeration"
+      },
+      {
+        "name": "SCAN-JA4-NUCLEI-GO",
+        "match": "ja4_cipher_hash == 'b78ed14e2fd0'",
+        "severity": "medium",
+        "notes": "Go crypto/tls with legacy cipher set (25 ciphers). Matches nuclei, gobuster, ffuf."
+      },
+      {
+        "name": "SCAN-JA4-WGET",
+        "match": "ja4_cipher_hash == '13e0e9e1c501'",
+        "severity": "low",
+        "notes": "GnuTLS with 68 cipher suites — unique to wget and GnuTLS clients"
+      },
+      {
+        "name": "SCAN-JA4-PYTHON-SSL",
+        "match": "ja4_cipher_hash == 'ab0a1bf427ad'",
+        "severity": "low",
+        "notes": "Python ssl module (17 ciphers). Very common for bots, scrapers, and legitimate automation."
+      }
+    ],
+    "ja3_based_suricata": [
+      {"sid": 9000001, "ja3": "f334454dc96768f9612d478fd7c91fe3", "tool": "nmap", "severity": "high"},
+      {"sid": 9000002, "ja3": "11a384388ad36777e1a2e121495037fe", "tool": "nuclei/Go", "severity": "medium"},
+      {"sid": 9000003, "ja3": "d12b36d1ef0d9915f23e2f80fc938d6b", "tool": "python3", "severity": "low"},
+      {"sid": 9000004, "ja3": "0a35e0b374f9077f46115637ab06ae88", "tool": "wget", "severity": "low"},
+      {"sid": 9000005, "ja3": "0659743d0a8904909448456a6dfa4b06", "tool": "curl", "severity": "info"},
+      {"sid": 9000006, "description": "TLS cipher enumeration burst (10+ in 60s)", "severity": "high"},
+      {"sid": 9000007, "ja3": "ee0799c323d74129b75b633dcfd41593", "tool": "nmap TLS 1.0", "severity": "high"}
+    ]
+  }
+}
