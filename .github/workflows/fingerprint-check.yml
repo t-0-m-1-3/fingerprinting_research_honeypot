@@ -1,0 +1,40 @@
+name: Fingerprint Harness Dry Run
+
+on:
+  pull_request:
+    paths:
+      - 'harness/**'
+      - 'honeypot/**'
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Syntax check harness modules
+        run: python3 -m py_compile harness/run.py harness/config.py harness/capture.py harness/extract.py harness/db.py harness/report.py
+
+      - name: Dry run — list all tools
+        run: python3 -m harness.run --all --dry-run
+
+      - name: Verify Dockerfiles exist for all registered tools
+        run: |
+          python3 -c "
+          from harness.config import TOOL_REGISTRY
+          import os, sys
+          missing = []
+          for name, spec in TOOL_REGISTRY.items():
+              if spec.dockerfile and not os.path.exists(f'harness/tools/{spec.dockerfile}'):
+                  missing.append(f'{name}: harness/tools/{spec.dockerfile}')
+          if missing:
+              print('Missing Dockerfiles:')
+              for m in missing:
+                  print(f'  {m}')
+              sys.exit(1)
+          print(f'All {len([s for s in TOOL_REGISTRY.values() if s.dockerfile])} Dockerfiles present')
+          "
