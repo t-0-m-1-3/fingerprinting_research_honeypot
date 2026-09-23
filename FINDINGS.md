@@ -141,7 +141,9 @@ Match on **cipher_hash + ext_hash** for environment-agnostic detection:
 
 ## 4. Canary Token Effectiveness
 
-103 canary triggers across the local baseline scans:
+### 4.1 Initial Baseline (Local + AWS, 2026-09-14)
+
+103 canary triggers across 6 tools (curl, nmap, nuclei, python3, wget, WebFetch):
 
 | Canary Type | Triggers | Primary Scanner | Detection Mechanism |
 |-------------|----------|-----------------|---------------------|
@@ -153,6 +155,42 @@ Match on **cipher_hash + ext_hash** for environment-agnostic detection:
 | meta_redirect | 1 | nuclei | Followed `<meta http-equiv="refresh">` in `<noscript>` |
 
 nuclei triggered **94 of 103** canaries (91%).
+
+### 4.2 Full Harness Run (Docker, 2026-09-23)
+
+**1,182 canary triggers** across 22 tools, 9 of 10 canary types active:
+
+| Canary Type | Triggers | Tools That Triggered | Top Triggerers |
+|-------------|----------|---------------------|----------------|
+| robots_bait | 591 | dirb, dirsearch, feroxbuster, ffuf, gobuster, katana, nikto, zap | dirsearch (411), feroxbuster (252), zap (172) |
+| css_hidden | 201 | dirsearch, feroxbuster, katana, nikto, zap | Multiple |
+| aria_link | 123 | feroxbuster, katana, zap | — |
+| link_prefetch | 112 | dirsearch, feroxbuster, nikto, playwright-\*, puppeteer, selenium-\*, zap | Browsers also trigger this |
+| pixel | 103 | feroxbuster, playwright-\*, puppeteer, selenium-\*, zap | Browsers also trigger this |
+| srcset_canary | 32 | zap | ZAP exclusively |
+| meta_redirect | 16 | zap | ZAP exclusively |
+| hidden_field | 2 | zap | ZAP exclusively |
+| comment_cred | 2 | zap | ZAP exclusively |
+| form_action | 0 | *(none)* | Not triggered in any test |
+
+### 4.3 Canary Detection Tiers
+
+Canary tokens are tiered by false positive risk for alerting (see [ADS-005](detection/ads/ADS-005-canary-token-correlation.md)):
+
+| Tier | Priority | Canary Types | FP Risk | Rationale |
+|------|----------|-------------|---------|-----------|
+| **Tier 1** | P1 Critical | comment_cred, hidden_field, form_action | Zero | Requires credential extraction or form replay — no browser does this |
+| **Tier 2** | P1 High | meta_redirect, srcset_canary, robots_bait | Negligible | noscript redirects, srcset parsing, robots.txt Disallow probing |
+| **Tier 3** | P2 High | css_hidden, aria_link | Low | Some accessibility tools may trigger |
+| **Tier 4** | P3 Medium | pixel, link_prefetch | Moderate | Browsers legitimately load these — correlate with JA4 |
+
+### 4.4 Key Takeaways
+
+- **robots_bait** is the highest-volume canary (50% of all triggers) — every directory scanner triggers it
+- **ZAP** is the most canary-aggressive tool: triggered 7 of 9 canary types, and is the **only** tool to trigger srcset_canary, meta_redirect, hidden_field, and comment_cred
+- **Headless browsers** (Playwright, Puppeteer, Selenium) trigger only Tier 4 canaries (pixel, link_prefetch) — expected, since they render pages normally
+- **form_action** never fired in any test — may need redesign or tools don't auto-submit forms
+- Multi-canary correlation (2+ types from one IP) is a high-confidence scanner indicator
 
 ## 5. Evasion Techniques
 
@@ -193,16 +231,34 @@ The coordinated scanner on AWS demonstrated active JA3 randomization: same ciphe
 
 | File | Description |
 |------|-------------|
-| `ja4_fingerprints.json` | v2.0 fingerprint database with JA3 + JA4 data from both environments |
+| `ja4_fingerprints.json` | v2.1 fingerprint database — 29 tools, JA3 + JA4 from local, AWS, and harness environments |
 | `suricata-ja3-rules.rules` | Suricata JA3 rules (SIDs 9000001-9000007) |
 | `so-dashboard-scanner-detection.ndjson` | Kibana/OpenSearch saved objects for scanner detection dashboard |
 | `aws-deploy.sh` | 4-phase AWS deployment script (deploy/scan/collect/destroy) |
-| `honeypot/app.py` | Honeypot Flask application with canary tokens |
+| `honeypot/app.py` | Honeypot Flask application with 10 canary token types |
+| `harness/` | Dockerized fingerprinting harness — 22 tools in isolated containers |
+| `detection/ads/` | 7 Alerting Detection Strategy documents (Palantir framework) with SIGMA/Splunk/Elastic queries |
 
 ## 8. Next Steps
 
 - Complete LLM agent testing — ChatGPT browsing, Perplexity, Gemini (requires AWS instance)
-- Expand fingerprint database: httpx (Go), gobuster, ffuf, sqlmap, nikto, dirb, wpscan
-- Add browser fingerprints (Chrome, Firefox, Safari) as baseline for false-positive tuning
-- Test JA3 randomization tools to validate evasion detection
-- Develop JA4 cipher_hash-based Suricata rules (more portable than JA3 rules)
+- Test JA3 randomization tools (ja3transport, utls) to validate evasion detection
+- Deploy ADS queries to Security Onion / Splunk and tune thresholds against production traffic
+- Build canary trigger dashboard (Grafana or Kibana) for real-time monitoring
+- Integrate JA4 cipher_hash-based detection into Suricata (more portable than JA3 rules)
+
+## 9. Alerting Detection Strategies
+
+Seven ADS documents following the [Palantir ADS Framework](https://github.com/palantir/alerting-detection-strategy-framework), each containing SIGMA rules, Splunk SPL, and Elastic KQL queries:
+
+| ADS | Detection | MITRE ATT&CK | Priority | Key Signal |
+|-----|-----------|-------------|----------|------------|
+| [ADS-001](detection/ads/ADS-001-tls-cipher-enumeration.md) | TLS Cipher Enumeration | T1046, T1595.002 | P1 Critical | 10+ unique JA4 from 1 IP in 60s |
+| [ADS-002](detection/ads/ADS-002-vulnerability-scanner.md) | Vulnerability Scanner | T1190, T1595.002 | P1 Critical | cipher_hash `1d947a95fc68` (ZAP), `5177063c590b` (sqlmap) + canary |
+| [ADS-003](detection/ads/ADS-003-directory-bruteforce.md) | Directory Brute-Force | T1595.003 | P2 High | Request rate + robots_bait canary + 404 ratio |
+| [ADS-004](detection/ads/ADS-004-go-recon-tools.md) | Go Recon Tools | T1595.002, T1046 | P2 High | cipher_hash `b78ed14e2fd0` (legacy Go) + canary correlation |
+| [ADS-005](detection/ads/ADS-005-canary-token-correlation.md) | Canary Token Correlation | T1595.002, T1190 | P1-P3 tiered | Canary type determines priority; multi-canary = P1 |
+| [ADS-006](detection/ads/ADS-006-browser-impersonation.md) | Browser Impersonation | T1036, T1071.001 | P3 Medium | Browser cipher_hash + non-browser ext_hash mismatch |
+| [ADS-007](detection/ads/ADS-007-deprecated-tls-protocol.md) | Deprecated TLS Protocol | T1046, T1595.002 | P1 Critical | JA4 prefix `ts3`/`t10`/`t11` — zero legitimate use |
+
+See [`detection/ads/README.md`](detection/ads/README.md) for log field schema and platform field mappings.
