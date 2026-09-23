@@ -1,0 +1,309 @@
+"""Tool registry and configuration for the fingerprinting harness."""
+
+from dataclasses import dataclass, field
+
+HARNESS_NETWORK = "harness-net"
+HARNESS_SUBNET = "172.30.0.0/24"
+HONEYPOT_IP = "172.30.0.2"
+HONEYPOT_PORT = 8443
+TARGET_URL = f"https://{HONEYPOT_IP}:{HONEYPOT_PORT}"
+
+
+@dataclass
+class ToolSpec:
+    name: str
+    category: str
+    dockerfile: str  # relative to harness/tools/
+    scan_command: list[str]  # {target_url}, {target_ip}, {target_host}, {target_port} are substituted
+    static_ip: str  # on harness-net
+    timeout_seconds: int = 120
+    needs_wordlist: bool = False
+    version_command: list[str] = field(default_factory=list)
+    target_mode: str = "url"  # url | ip | host_port
+    notes: str = ""
+
+
+# IP assignments: 172.30.0.2 = honeypot, 172.30.0.10+ = tools
+# Cat 1: .10-.20, Cat 2: .30-.39, Cat 3: .40-.49, Cat 4: .50-.59, Cat 5: .60-.69
+
+TOOL_REGISTRY: dict[str, ToolSpec] = {
+    # --- Built-in validation tool (no Dockerfile needed) ---
+    "curl": ToolSpec(
+        name="curl",
+        category="validation",
+        dockerfile="",  # uses host curl via docker run
+        scan_command=[
+            "curl", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}",
+        ],
+        static_ip="172.30.0.100",
+        timeout_seconds=30,
+        version_command=["curl", "--version"],
+        notes="Validation tool — uses the curl image to verify pipeline end-to-end",
+    ),
+
+    # --- Category 1: Web scanners ---
+    "nikto": ToolSpec(
+        name="nikto",
+        category="cat1-scanners",
+        dockerfile="nikto.Dockerfile",
+        scan_command=["nikto", "-h", "{target_url}", "-ssl", "-nointeractive", "-maxtime", "60s"],
+        static_ip="172.30.0.10",
+        timeout_seconds=90,
+        version_command=["nikto", "-Version"],
+    ),
+    "dirb": ToolSpec(
+        name="dirb",
+        category="cat1-scanners",
+        dockerfile="dirb.Dockerfile",
+        scan_command=["dirb", "{target_url}/", "/wordlists/common.txt", "-S", "-a", "Mozilla/5.0"],
+        static_ip="172.30.0.11",
+        timeout_seconds=120,
+        needs_wordlist=True,
+        version_command=["dirb", "2>&1", "|", "head", "-1"],
+    ),
+    "dirsearch": ToolSpec(
+        name="dirsearch",
+        category="cat1-scanners",
+        dockerfile="dirsearch.Dockerfile",
+        scan_command=["dirsearch", "-u", "{target_url}", "--no-color", "-t", "5"],
+        static_ip="172.30.0.12",
+        timeout_seconds=120,
+        version_command=["dirsearch", "--version"],
+    ),
+    "gobuster": ToolSpec(
+        name="gobuster",
+        category="cat1-scanners",
+        dockerfile="gobuster.Dockerfile",
+        scan_command=[
+            "gobuster", "dir", "-u", "{target_url}", "-w", "/wordlists/common.txt",
+            "-k", "-q", "-t", "5",
+        ],
+        static_ip="172.30.0.13",
+        timeout_seconds=120,
+        needs_wordlist=True,
+        version_command=["gobuster", "version"],
+    ),
+    "ffuf": ToolSpec(
+        name="ffuf",
+        category="cat1-scanners",
+        dockerfile="ffuf.Dockerfile",
+        scan_command=[
+            "ffuf", "-u", "{target_url}/FUZZ", "-w", "/wordlists/common.txt",
+            "-mc", "all", "-t", "5", "-s",
+        ],
+        static_ip="172.30.0.14",
+        timeout_seconds=120,
+        needs_wordlist=True,
+        version_command=["ffuf", "-V"],
+    ),
+    "feroxbuster": ToolSpec(
+        name="feroxbuster",
+        category="cat1-scanners",
+        dockerfile="feroxbuster.Dockerfile",
+        scan_command=[
+            "feroxbuster", "-u", "{target_url}", "-w", "/wordlists/common.txt",
+            "-k", "-q", "-t", "5", "--time-limit", "60s",
+        ],
+        static_ip="172.30.0.15",
+        timeout_seconds=90,
+        needs_wordlist=True,
+        version_command=["feroxbuster", "--version"],
+    ),
+    "wpscan": ToolSpec(
+        name="wpscan",
+        category="cat1-scanners",
+        dockerfile="wpscan.Dockerfile",
+        scan_command=[
+            "wpscan", "--url", "{target_url}", "--disable-tls-checks",
+            "--detection-mode", "passive", "--max-threads", "5",
+        ],
+        static_ip="172.30.0.16",
+        timeout_seconds=120,
+        version_command=["wpscan", "--version"],
+    ),
+    "sqlmap": ToolSpec(
+        name="sqlmap",
+        category="cat1-scanners",
+        dockerfile="sqlmap.Dockerfile",
+        scan_command=[
+            "sqlmap", "-u", "{target_url}/api/v1/users?id=1",
+            "--batch", "--level=1", "--risk=1", "--timeout=10",
+        ],
+        static_ip="172.30.0.17",
+        timeout_seconds=120,
+        version_command=["sqlmap", "--version"],
+    ),
+    "testssl": ToolSpec(
+        name="testssl",
+        category="cat1-scanners",
+        dockerfile="testssl.Dockerfile",
+        scan_command=["testssl.sh", "--quiet", "--fast", "{target_ip}:{target_port}"],
+        static_ip="172.30.0.18",
+        timeout_seconds=180,
+        target_mode="host_port",
+        version_command=["testssl.sh", "--version"],
+        notes="Generates many TLS handshakes with different cipher configurations",
+    ),
+    "sslscan": ToolSpec(
+        name="sslscan",
+        category="cat1-scanners",
+        dockerfile="sslscan.Dockerfile",
+        scan_command=["sslscan", "--no-colour", "{target_ip}:{target_port}"],
+        static_ip="172.30.0.19",
+        timeout_seconds=60,
+        target_mode="host_port",
+        version_command=["sslscan", "--version"],
+    ),
+    "sslyze": ToolSpec(
+        name="sslyze",
+        category="cat1-scanners",
+        dockerfile="sslyze.Dockerfile",
+        scan_command=["sslyze", "{target_ip}:{target_port}"],
+        static_ip="172.30.0.20",
+        timeout_seconds=120,
+        target_mode="host_port",
+        version_command=["sslyze", "--version"],
+    ),
+
+    # --- Category 2: Recon ---
+    "httpx": ToolSpec(
+        name="httpx",
+        category="cat2-recon",
+        dockerfile="httpx.Dockerfile",
+        scan_command=["sh", "-c", "echo '{target_url}' | httpx -silent -follow-redirects -tls-grab"],
+        static_ip="172.30.0.30",
+        timeout_seconds=60,
+        version_command=["httpx", "-version"],
+    ),
+    "katana": ToolSpec(
+        name="katana",
+        category="cat2-recon",
+        dockerfile="katana.Dockerfile",
+        scan_command=["katana", "-u", "{target_url}", "-silent", "-depth", "2", "-jc"],
+        static_ip="172.30.0.31",
+        timeout_seconds=120,
+        version_command=["katana", "-version"],
+    ),
+
+    # --- Category 3: Browser automation ---
+    "playwright-chromium": ToolSpec(
+        name="playwright-chromium",
+        category="cat3-browsers",
+        dockerfile="playwright.Dockerfile",
+        scan_command=["python3", "/scripts/run-playwright.py", "{target_url}", "chromium"],
+        static_ip="172.30.0.40",
+        timeout_seconds=60,
+        version_command=["python3", "-c", "import playwright; print(playwright.__version__)"],
+    ),
+    "playwright-firefox": ToolSpec(
+        name="playwright-firefox",
+        category="cat3-browsers",
+        dockerfile="playwright.Dockerfile",
+        scan_command=["python3", "/scripts/run-playwright.py", "{target_url}", "firefox"],
+        static_ip="172.30.0.41",
+        timeout_seconds=60,
+    ),
+    "playwright-webkit": ToolSpec(
+        name="playwright-webkit",
+        category="cat3-browsers",
+        dockerfile="playwright.Dockerfile",
+        scan_command=["python3", "/scripts/run-playwright.py", "{target_url}", "webkit"],
+        static_ip="172.30.0.42",
+        timeout_seconds=60,
+    ),
+    "puppeteer": ToolSpec(
+        name="puppeteer",
+        category="cat3-browsers",
+        dockerfile="puppeteer.Dockerfile",
+        scan_command=["node", "/scripts/run-puppeteer.js", "{target_url}"],
+        static_ip="172.30.0.43",
+        timeout_seconds=60,
+        version_command=["node", "-e", "console.log(require('puppeteer/package.json').version)"],
+    ),
+    "selenium-chrome": ToolSpec(
+        name="selenium-chrome",
+        category="cat3-browsers",
+        dockerfile="selenium-chrome.Dockerfile",
+        scan_command=["python3", "/scripts/run-selenium.py", "{target_url}", "chrome"],
+        static_ip="172.30.0.44",
+        timeout_seconds=60,
+    ),
+    "selenium-firefox": ToolSpec(
+        name="selenium-firefox",
+        category="cat3-browsers",
+        dockerfile="selenium-firefox.Dockerfile",
+        scan_command=["python3", "/scripts/run-selenium.py", "{target_url}", "firefox"],
+        static_ip="172.30.0.45",
+        timeout_seconds=60,
+    ),
+
+    # --- Category 4: Evasion ---
+    "curl-impersonate-chrome": ToolSpec(
+        name="curl-impersonate-chrome",
+        category="cat4-evasion",
+        dockerfile="curl-impersonate.Dockerfile",
+        scan_command=["curl_chrome116", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}"],
+        static_ip="172.30.0.50",
+        timeout_seconds=30,
+        version_command=["curl_chrome116", "--version"],
+    ),
+    "curl-impersonate-firefox": ToolSpec(
+        name="curl-impersonate-firefox",
+        category="cat4-evasion",
+        dockerfile="curl-impersonate.Dockerfile",
+        scan_command=["curl_ff117", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}"],
+        static_ip="172.30.0.51",
+        timeout_seconds=30,
+    ),
+
+    # --- Category 5: Vuln scanners ---
+    "zap": ToolSpec(
+        name="zap",
+        category="cat5-vulnscanners",
+        dockerfile="zap.Dockerfile",
+        scan_command=[
+            "zap-baseline.py", "-t", "{target_url}", "-I",
+        ],
+        static_ip="172.30.0.60",
+        timeout_seconds=300,
+        version_command=["zap.sh", "-version"],
+    ),
+    "arachni": ToolSpec(
+        name="arachni",
+        category="cat5-vulnscanners",
+        dockerfile="arachni.Dockerfile",
+        scan_command=[
+            "arachni", "{target_url}", "--checks=*", "--scope-page-limit=20",
+        ],
+        static_ip="172.30.0.61",
+        timeout_seconds=300,
+        version_command=["arachni", "--version"],
+    ),
+}
+
+
+def get_tools_by_category(category: str) -> list[ToolSpec]:
+    return [t for t in TOOL_REGISTRY.values() if t.category == category]
+
+
+def get_all_categories() -> list[str]:
+    return sorted(set(t.category for t in TOOL_REGISTRY.values()))
+
+
+def resolve_tool_names(tools: list[str] | None, category: str | None, run_all: bool) -> list[ToolSpec]:
+    """Resolve CLI args to a list of ToolSpecs."""
+    if run_all:
+        return [t for t in TOOL_REGISTRY.values() if t.category != "validation"]
+    if category:
+        specs = get_tools_by_category(category)
+        if not specs:
+            raise ValueError(f"Unknown category: {category}. Available: {get_all_categories()}")
+        return specs
+    if tools:
+        specs = []
+        for name in tools:
+            if name not in TOOL_REGISTRY:
+                raise ValueError(f"Unknown tool: {name}. Available: {sorted(TOOL_REGISTRY.keys())}")
+            specs.append(TOOL_REGISTRY[name])
+        return specs
+    raise ValueError("Specify --tools, --category, or --all")
