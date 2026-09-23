@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "generated": "2026-09-14",
+  "version": "2.1.0",
+  "generated": "2026-09-23",
   "description": "JA3/JA4 TLS fingerprint database for scanner/bot detection. Built from baseline scans against the Quiet Room honeypot (local VLAN 47 + AWS public instance).",
   "scan_environments": {
     "local": {
@@ -9,7 +9,7 @@
       "capture_interface": "eth0 on LXC 148",
       "source_ip": "192.168.1.45",
       "tls_cert": "self-signed (no SNI)",
-      "notes": "Local scans have no SNI extension — JA4 prefix uses 'i' flag and has 1 fewer extension than AWS scans"
+      "notes": "Local scans have no SNI extension \u2014 JA4 prefix uses 'i' flag and has 1 fewer extension than AWS scans"
     },
     "aws": {
       "target": "32.192.255.152:443 (32-192-255-152.sslip.io)",
@@ -17,7 +17,7 @@
       "capture_interface": "eth0 on EC2 i-0d31a4cf0ad48813c",
       "source_ip": "68.161.211.69 (workstation), 158.69.55.82/158.69.117.45/193.239.237.77 (WebFetch)",
       "tls_cert": "Let's Encrypt (sslip.io, SNI present)",
-      "notes": "AWS scans have SNI — JA4 prefix uses 'd' flag. Cipher and extension hashes remain stable across environments."
+      "notes": "AWS scans have SNI \u2014 JA4 prefix uses 'd' flag. Cipher and extension hashes remain stable across environments."
     }
   },
   "ja4_format_reference": {
@@ -54,10 +54,24 @@
         "cipher_count": 30,
         "alpn": "h2"
       },
-      "sessions_observed": {"local": 5, "aws": 12},
+      "sessions_observed": {
+        "local": 5,
+        "aws": 12,
+        "harness": 2
+      },
       "behavior": "One TLS handshake per HTTP request. Consistent fingerprint. Requests HTTP/2 via ALPN.",
       "detection_confidence": "high",
-      "notes": "Standard OpenSSL fingerprint. Also matches other OpenSSL-based CLI tools. JA3 changes between local/AWS due to SNI extension, but JA4 cipher/ext hashes remain stable."
+      "notes": "Standard OpenSSL fingerprint. Also matches other OpenSSL-based CLI tools. JA3 changes between local/AWS due to SNI extension, but JA4 cipher/ext hashes remain stable.",
+      "harness_metadata": {
+        "last_seen": "2026-09-23T15:58:46.279932+00:00",
+        "last_run_id": "09b09c55",
+        "version_history": [
+          {
+            "version": "curl 8.22.0 (x86_64-pc-linux-musl) libcurl/8.22.0 OpenSSL/3.5.8 zlib/1.3.2 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.5 libssh2/1.11.1 nghttp2/1.69.0 mit-krb5/1.22.2",
+            "seen": "2026-09-23T15:58:46.279932+00:00"
+          }
+        ]
+      }
     },
     {
       "tool": "wget",
@@ -78,8 +92,11 @@
         "cipher_count": 68,
         "alpn": "none"
       },
-      "sessions_observed": {"local": 3, "aws": 3},
-      "behavior": "One TLS handshake per request. GnuTLS offers 68 cipher suites — the largest of any tool tested. No ALPN.",
+      "sessions_observed": {
+        "local": 3,
+        "aws": 3
+      },
+      "behavior": "One TLS handshake per request. GnuTLS offers 68 cipher suites \u2014 the largest of any tool tested. No ALPN.",
       "detection_confidence": "high",
       "notes": "GnuTLS fingerprint with unusually large cipher suite list (68 including CAMELLIA, ARIA). Unique among common tools."
     },
@@ -102,8 +119,11 @@
         "cipher_count": 17,
         "alpn": "none"
       },
-      "sessions_observed": {"local": 10, "aws": 5},
-      "behavior": "Same fingerprint for urllib, http.client, requests, httpx — all use Python ssl module. Smallest cipher set (17) of any tested tool.",
+      "sessions_observed": {
+        "local": 10,
+        "aws": 5
+      },
+      "behavior": "Same fingerprint for urllib, http.client, requests, httpx \u2014 all use Python ssl module. Smallest cipher set (17) of any tested tool.",
       "detection_confidence": "high",
       "notes": "Python ssl.create_default_context() aggressively filters cipher suites. One of the most common bot/scraper fingerprints on the internet."
     },
@@ -133,14 +153,16 @@
         "primary_cipher_count": 71,
         "alpn": "none"
       },
-      "sessions_observed": {"local": 90},
+      "sessions_observed": {
+        "local": 90
+      },
       "behavior": "Primary probe with 71 ciphers, then ~55 cipher-enumeration probes across TLS 1.0/1.1/1.2/1.3/SSLv3. Each probe has a unique JA4 due to different cipher subsets. The burst of many unique JA4 prefixes (t10/t11/t12/t13/ts3) from one source is a dead giveaway.",
       "detection_confidence": "very_high",
       "detection_signals": [
         "Primary JA4 cipher_hash 8f28d1f76561 with 71 ciphers",
         "55+ unique JA4 fingerprints from single source within seconds",
-        "SSLv3 probes (ts3i*) — no legitimate modern client uses SSLv3",
-        "TLS 1.0 probes (t10i*) — extremely rare in modern traffic",
+        "SSLv3 probes (ts3i*) \u2014 no legitimate modern client uses SSLv3",
+        "TLS 1.0 probes (t10i*) \u2014 extremely rare in modern traffic",
         "Extension hash 99875426d20b shared across all TLS 1.2 cipher probes"
       ],
       "notes": "Trivially detectable: 55+ distinct JA4s in rapid succession, including SSLv3 and TLS 1.0 probes. The primary probe's 71-cipher suite count is also abnormally high."
@@ -162,10 +184,12 @@
         "cipher_count": 25,
         "alpn": "none"
       },
-      "sessions_observed": {"local": 377},
+      "sessions_observed": {
+        "local": 377
+      },
       "behavior": "Single consistent fingerprint across all 377 requests. 377 handshakes in ~3 seconds. No ALPN.",
       "detection_confidence": "very_high",
-      "notes": "Go crypto/tls fingerprint (25 ciphers, no ALPN). Shared by nuclei, gobuster, ffuf, subfinder, and other Go security tools. Different from WebFetch's Go fingerprint (13 ciphers) — nuclei uses an older Go TLS configuration."
+      "notes": "Go crypto/tls fingerprint (25 ciphers, no ALPN). Shared by nuclei, gobuster, ffuf, subfinder, and other Go security tools. Different from WebFetch's Go fingerprint (13 ciphers) \u2014 nuclei uses an older Go TLS configuration."
     },
     {
       "tool": "claude_webfetch",
@@ -185,17 +209,650 @@
         "cipher_count": 13,
         "alpn": "none"
       },
-      "source_ips": ["158.69.55.82", "158.69.117.45", "193.239.237.77"],
-      "sessions_observed": {"aws": 89},
-      "behavior": "89 TLS sessions across 3 source IPs. Consistent fingerprint. All sessions to same domain. Go crypto/tls but with only 13 ciphers — a much more restricted set than nuclei's 25.",
+      "source_ips": [
+        "158.69.55.82",
+        "158.69.117.45",
+        "193.239.237.77"
+      ],
+      "sessions_observed": {
+        "aws": 89
+      },
+      "behavior": "89 TLS sessions across 3 source IPs. Consistent fingerprint. All sessions to same domain. Go crypto/tls but with only 13 ciphers \u2014 a much more restricted set than nuclei's 25.",
       "detection_confidence": "high",
       "notes": "Anthropic's WebFetch uses Go crypto/tls but with a modern, minimal cipher suite (13 ciphers including only TLS 1.3 and ECDHE suites). Distinct from nuclei/gobuster Go fingerprints which offer 25 ciphers including legacy suites. The cipher_hash f57a46bbacb6 is unique to this Go TLS configuration."
+    },
+    {
+      "tool": "dirb",
+      "version": "-----------------",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "64545e1f496c8efac973ef5020a87a78"
+      },
+      "ja4": {
+        "harness": "t13i3111h2_e8f1e7e78f70_b26ce05bbdd6"
+      },
+      "ja4_components": {
+        "cipher_hash": "e8f1e7e78f70",
+        "ext_hash": "b26ce05bbdd6",
+        "cipher_count": 31,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 37
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037109+00:00",
+        "last_seen": "2026-09-23T16:41:42.037109+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "dirsearch",
+      "version": "dirsearch v0.5.0",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "63df4a17564841f603a2c87addad697c"
+      },
+      "ja4": {
+        "harness": "t13i1712h1_ab0a1bf427ad_ecd0401ec68b"
+      },
+      "ja4_components": {
+        "cipher_hash": "ab0a1bf427ad",
+        "ext_hash": "ecd0401ec68b",
+        "cipher_count": 17,
+        "alpn": "http/1.1"
+      },
+      "sessions_observed": {
+        "harness": 12308
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037122+00:00",
+        "last_seen": "2026-09-23T16:41:42.037122+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "ffuf",
+      "version": "ffuf version: 2.1.0-dev",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "96458b3de39df5d47bc5c4a9f10f8f26"
+      },
+      "ja4": {
+        "harness": "t13i191000_9dc949149365_e5728521abd4"
+      },
+      "ja4_components": {
+        "cipher_hash": "9dc949149365",
+        "ext_hash": "e5728521abd4",
+        "cipher_count": 19,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 31
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037134+00:00",
+        "last_seen": "2026-09-23T16:41:42.037134+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "feroxbuster",
+      "version": "feroxbuster 2.13.1",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "1eb829df212cb2b14c8db02fb1440f36"
+      },
+      "ja4": {
+        "harness": "t13i3011h2_1d37bd780c83_8e6e362c5eac"
+      },
+      "ja4_components": {
+        "cipher_hash": "1d37bd780c83",
+        "ext_hash": "8e6e362c5eac",
+        "cipher_count": 30,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 279
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037139+00:00",
+        "last_seen": "2026-09-23T16:41:42.037139+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "wpscan",
+      "version": "_______________________________________________________________",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "3cbbf536a62369185a59f2e2d254466f"
+      },
+      "ja4": {
+        "harness": "t13i3012h2_1d37bd780c83_8537cf56674e"
+      },
+      "ja4_components": {
+        "cipher_hash": "1d37bd780c83",
+        "ext_hash": "8537cf56674e",
+        "cipher_count": 30,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 5
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037148+00:00",
+        "last_seen": "2026-09-23T16:41:42.037148+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "sqlmap",
+      "version": "1.10.9#pip",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "88d1ead6233d2e7df3ce89d5f4d4184f"
+      },
+      "ja4": {
+        "harness": "t13i861100_5177063c590b_4375406afd5e"
+      },
+      "ja4_components": {
+        "cipher_hash": "5177063c590b",
+        "ext_hash": "4375406afd5e",
+        "cipher_count": 86,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 1
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037152+00:00",
+        "last_seen": "2026-09-23T16:41:42.037152+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "testssl",
+      "version": "\u001b[1m",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "03d3581b096a482de6b6a3ba27efb90c"
+      },
+      "ja4": {
+        "harness": "t00i091100_778603501f98_4178a7550c93"
+      },
+      "ja4_components": {
+        "cipher_hash": "778603501f98",
+        "ext_hash": "4178a7550c93",
+        "cipher_count": 9,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 122
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037157+00:00",
+        "last_seen": "2026-09-23T16:41:42.037157+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "sslscan",
+      "version": "\u001b[1;34m\t\t2.0.7",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "07dc81df82d43262c35f8739f06f26d5"
+      },
+      "ja4": {
+        "harness": "t10d280600_a9850205cb0f_195413a0cc0f"
+      },
+      "ja4_components": {
+        "cipher_hash": "a9850205cb0f",
+        "ext_hash": "195413a0cc0f",
+        "cipher_count": 28,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 93
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037162+00:00",
+        "last_seen": "2026-09-23T16:41:42.037162+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "sslyze",
+      "version": "usage: sslyze [-h] [--update_trust_stores] [--cert CERTIFICATE_FILE]",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "008f240c56638283220461d58c217a3e"
+      },
+      "ja4": {
+        "harness": "t10d020300_0c65036c8509_18d1e47e0978"
+      },
+      "ja4_components": {
+        "cipher_hash": "0c65036c8509",
+        "ext_hash": "18d1e47e0978",
+        "cipher_count": 2,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 447
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037166+00:00",
+        "last_seen": "2026-09-23T16:41:42.037166+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "gobuster",
+      "version": "No help topic for 'version'",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "2196848d251b217de8b2c037e356c11d"
+      },
+      "ja4": {
+        "harness": "t13i131000_f57a46bbacb6_ab7e3b40a677"
+      },
+      "ja4_components": {
+        "cipher_hash": "f57a46bbacb6",
+        "ext_hash": "ab7e3b40a677",
+        "cipher_count": 13,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 33
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037129+00:00",
+        "last_seen": "2026-09-23T16:41:42.037129+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "selenium-chrome",
+      "version": "unknown",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "05f41fd45ee73e2d120dfc9051547c0b"
+      },
+      "ja4": {
+        "harness": "t13i1516h2_8daaf6152771_0d789d2519e1"
+      },
+      "ja4_components": {
+        "cipher_hash": "8daaf6152771",
+        "ext_hash": "0d789d2519e1",
+        "cipher_count": 15,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 38
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037201+00:00",
+        "last_seen": "2026-09-23T16:41:42.037201+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "selenium-firefox",
+      "version": "unknown",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "3ec5d3c9a10d43b0576e31e639c83cd0"
+      },
+      "ja4": {
+        "harness": "t13i1716h2_5b57614c22b0_3cbfd9057e0d"
+      },
+      "ja4_components": {
+        "cipher_hash": "5b57614c22b0",
+        "ext_hash": "3cbfd9057e0d",
+        "cipher_count": 17,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 36
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037206+00:00",
+        "last_seen": "2026-09-23T16:41:42.037206+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "curl-impersonate-firefox",
+      "version": "curl 8.1.1 (x86_64-pc-linux-gnu) libcurl/8.1.1 NSS/3.92 zlib/1.2.13 brotli/1.0.9 nghttp2/1.56.0",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "74f5c44ffd995be19782496fa817c517"
+      },
+      "ja4": {
+        "harness": "t13i1713h2_5b57614c22b0_91f45d5059c6"
+      },
+      "ja4_components": {
+        "cipher_hash": "5b57614c22b0",
+        "ext_hash": "91f45d5059c6",
+        "cipher_count": 17,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 1
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037215+00:00",
+        "last_seen": "2026-09-23T16:41:42.037215+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "zap",
+      "version": "Found Java version 17.0.20",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "d9f868cf1c706c4d2e8f9bb06d3f6882"
+      },
+      "ja4": {
+        "harness": "t13i311100_1d947a95fc68_7e1102d2036b"
+      },
+      "ja4_components": {
+        "cipher_hash": "1d947a95fc68",
+        "ext_hash": "7e1102d2036b",
+        "cipher_count": 31,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 116
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037220+00:00",
+        "last_seen": "2026-09-23T16:41:42.037220+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "httpx",
+      "version": "__    __  __       _  __",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "416eca07dcaad72dec6f76d1277b3eff"
+      },
+      "ja4": {
+        "harness": "t13i251000_b78ed14e2fd0_f50d94e863eb"
+      },
+      "ja4_components": {
+        "cipher_hash": "b78ed14e2fd0",
+        "ext_hash": "f50d94e863eb",
+        "cipher_count": 25,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 2
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975252+00:00",
+        "last_seen": "2026-09-23T16:41:42.037171+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "katana",
+      "version": "__        __                ",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "416eca07dcaad72dec6f76d1277b3eff"
+      },
+      "ja4": {
+        "harness": "t13i251000_b78ed14e2fd0_f50d94e863eb"
+      },
+      "ja4_components": {
+        "cipher_hash": "b78ed14e2fd0",
+        "ext_hash": "f50d94e863eb",
+        "cipher_count": 25,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 80
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975277+00:00",
+        "last_seen": "2026-09-23T16:41:42.037177+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "playwright-chromium",
+      "version": "Traceback (most recent call last):",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "01b1aafa9446127b969f38c948d48ff7"
+      },
+      "ja4": {
+        "harness": "t13i1515h2_8daaf6152771_02713d6af862"
+      },
+      "ja4_components": {
+        "cipher_hash": "8daaf6152771",
+        "ext_hash": "02713d6af862",
+        "cipher_count": 15,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 132
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975287+00:00",
+        "last_seen": "2026-09-23T16:41:42.037182+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "playwright-firefox",
+      "version": "unknown",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "346c0107957ea99b5b66f47bd9a59196"
+      },
+      "ja4": {
+        "harness": "t13i1714h2_5b57614c22b0_5c2c66f702b0"
+      },
+      "ja4_components": {
+        "cipher_hash": "5b57614c22b0",
+        "ext_hash": "5c2c66f702b0",
+        "cipher_count": 17,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 68
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975294+00:00",
+        "last_seen": "2026-09-23T16:41:42.037188+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "playwright-webkit",
+      "version": "unknown",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "02b573504137995034e979608f95c11b"
+      },
+      "ja4": {
+        "harness": "t13i2912h2_723694b0fccc_5671b5df5029"
+      },
+      "ja4_components": {
+        "cipher_hash": "723694b0fccc",
+        "ext_hash": "5671b5df5029",
+        "cipher_count": 29,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 54
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975299+00:00",
+        "last_seen": "2026-09-23T16:41:42.037192+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "puppeteer",
+      "version": "node:internal/modules/cjs/loader:1433",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "0ab138042dfeae92c7dfc27185d1d0d3"
+      },
+      "ja4": {
+        "harness": "t13i1516h2_8daaf6152771_33f857a189cb"
+      },
+      "ja4_components": {
+        "cipher_hash": "8daaf6152771",
+        "ext_hash": "33f857a189cb",
+        "cipher_count": 15,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 37
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975304+00:00",
+        "last_seen": "2026-09-23T16:26:06.975304+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "5588eea4"
+      }
+    },
+    {
+      "tool": "puppeteer",
+      "version": "node:internal/modules/cjs/loader:1433",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "06ffceffc3c7b7a8d5d8a665bc28d2a2"
+      },
+      "ja4": {
+        "harness": "t13i1516h2_8daaf6152771_61307d0e143d"
+      },
+      "ja4_components": {
+        "cipher_hash": "8daaf6152771",
+        "ext_hash": "61307d0e143d",
+        "cipher_count": 15,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 36
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037196+00:00",
+        "last_seen": "2026-09-23T16:41:42.037196+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "curl-impersonate-chrome",
+      "version": "curl 7.84.0 (x86_64-pc-linux-musl) libcurl/7.84.0 BoringSSL zlib/1.2.11 brotli/1.0.9 nghttp2/1.46.0",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "47604a88999ade9c857482821b8cf84b"
+      },
+      "ja4": {
+        "harness": "t13i1515h2_8daaf6152771_e5627efa2ab1"
+      },
+      "ja4_components": {
+        "cipher_hash": "8daaf6152771",
+        "ext_hash": "e5627efa2ab1",
+        "cipher_count": 15,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 2
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:26:06.975309+00:00",
+        "last_seen": "2026-09-23T16:41:42.037211+00:00",
+        "first_run_id": "5588eea4",
+        "last_run_id": "a0782286"
+      }
+    },
+    {
+      "tool": "nikto",
+      "version": "Nikto 2.6.1 (LW 2.5)",
+      "tls_library": "",
+      "ja3_hash": {
+        "harness": "284deaeae14ea5ddc96c5d7e59855422"
+      },
+      "ja4": {
+        "harness": "t13d301200_1d37bd780c83_ecd0401ec68b"
+      },
+      "ja4_components": {
+        "cipher_hash": "1d37bd780c83",
+        "ext_hash": "ecd0401ec68b",
+        "cipher_count": 30,
+        "alpn": "none"
+      },
+      "sessions_observed": {
+        "harness": 8340
+      },
+      "detection_confidence": "pending",
+      "harness_metadata": {
+        "first_seen": "2026-09-23T16:41:42.037082+00:00",
+        "last_seen": "2026-09-23T16:41:42.037082+00:00",
+        "first_run_id": "a0782286",
+        "last_run_id": "a0782286"
+      }
     }
   ],
   "wild_scanner_fingerprints": {
     "description": "JA4 fingerprints observed from wild internet scanners hitting the AWS honeypot within minutes of deployment",
     "coordinated_nmap_scanner": {
-      "source_ips": ["136.124.34.5", "176.119.150.216", "24.199.113.99", "34.96.60.168", "62.210.93.92"],
+      "source_ips": [
+        "136.124.34.5",
+        "176.119.150.216",
+        "24.199.113.99",
+        "34.96.60.168",
+        "62.210.93.92"
+      ],
       "total_sessions": 87,
       "ja4_samples": [
         "t13d6912hq_ea0618708e31_1da015a32102",
@@ -205,26 +862,38 @@
         "t11d6911h9_ea0618708e31_52c4d8bb91c9",
         "t13d6412h9_0f757fa8abd0_1da015a32102"
       ],
-      "behavior": "5 IPs performing identical nmap-style cipher enumeration within the same 2-minute window. Same cipher suites but randomized TLS extension ordering — active JA3 evasion. JA4 cipher hashes (ea0618708e31) remain consistent across the coordinated scan.",
-      "notes": "JA3 randomization detected: same cipher suites, randomized extensions. JA4's sorted hashing partially defeats this — cipher_hash ea0618708e31 is shared across many of these probes."
+      "behavior": "5 IPs performing identical nmap-style cipher enumeration within the same 2-minute window. Same cipher suites but randomized TLS extension ordering \u2014 active JA3 evasion. JA4 cipher hashes (ea0618708e31) remain consistent across the coordinated scan.",
+      "notes": "JA3 randomization detected: same cipher suites, randomized extensions. JA4's sorted hashing partially defeats this \u2014 cipher_hash ea0618708e31 is shared across many of these probes."
     },
     "persistent_go_scanner": {
-      "source_ips": ["154.28.229.21", "45.153.102.164"],
+      "source_ips": [
+        "154.28.229.21",
+        "45.153.102.164"
+      ],
       "ja4": {
         "154.28.229.21": "t13d131100_f57a46bbacb6_e5728521abd4",
         "45.153.102.164": "t13d131000_f57a46bbacb6_e7c285222651"
       },
       "total_sessions": 50,
-      "notes": "Go crypto/tls with same cipher_hash as WebFetch (f57a46bbacb6) but from known scanner IPs. Demonstrates that Go's cipher_hash alone cannot distinguish legitimate from malicious Go clients — behavioral analysis needed."
+      "notes": "Go crypto/tls with same cipher_hash as WebFetch (f57a46bbacb6) but from known scanner IPs. Demonstrates that Go's cipher_hash alone cannot distinguish legitimate from malicious Go clients \u2014 behavioral analysis needed."
     },
     "misc_scanners": {
       "description": "Various single-session probes from different IPs",
       "ja4_samples": [
-        {"ip": "103.196.9.68", "ja4": "t13d1517h2_8daaf6152771_cb7bf5808d99"},
-        {"ip": "185.10.7.38", "ja4": "t13d1518h2_8daaf6152771_e2d80978ab2e"},
-        {"ip": "74.7.227.167", "ja4": "t13d1011h2_61a7ad8aa9b6_d4929ced8316"}
+        {
+          "ip": "103.196.9.68",
+          "ja4": "t13d1517h2_8daaf6152771_cb7bf5808d99"
+        },
+        {
+          "ip": "185.10.7.38",
+          "ja4": "t13d1518h2_8daaf6152771_e2d80978ab2e"
+        },
+        {
+          "ip": "74.7.227.167",
+          "ja4": "t13d1011h2_61a7ad8aa9b6_d4929ced8316"
+        }
       ],
-      "notes": "Single-request probes. Cipher hash 8daaf6152771 appears across multiple IPs — likely a shared scanning framework."
+      "notes": "Single-request probes. Cipher hash 8daaf6152771 appears across multiple IPs \u2014 likely a shared scanning framework."
     }
   },
   "detection_rules": {
@@ -240,13 +909,13 @@
         "name": "SCAN-JA4-NMAP-SSLV3",
         "match": "ja4 starts with 'ts3'",
         "severity": "high",
-        "notes": "SSLv3 ClientHello — no legitimate modern client uses SSLv3"
+        "notes": "SSLv3 ClientHello \u2014 no legitimate modern client uses SSLv3"
       },
       {
         "name": "SCAN-JA4-NMAP-TLS10",
         "match": "ja4 starts with 't10'",
         "severity": "medium",
-        "notes": "TLS 1.0 ClientHello — very rare in modern traffic, usually cipher enumeration"
+        "notes": "TLS 1.0 ClientHello \u2014 very rare in modern traffic, usually cipher enumeration"
       },
       {
         "name": "SCAN-JA4-NUCLEI-GO",
@@ -258,7 +927,7 @@
         "name": "SCAN-JA4-WGET",
         "match": "ja4_cipher_hash == '13e0e9e1c501'",
         "severity": "low",
-        "notes": "GnuTLS with 68 cipher suites — unique to wget and GnuTLS clients"
+        "notes": "GnuTLS with 68 cipher suites \u2014 unique to wget and GnuTLS clients"
       },
       {
         "name": "SCAN-JA4-PYTHON-SSL",
@@ -268,13 +937,47 @@
       }
     ],
     "ja3_based_suricata": [
-      {"sid": 9000001, "ja3": "f334454dc96768f9612d478fd7c91fe3", "tool": "nmap", "severity": "high"},
-      {"sid": 9000002, "ja3": "11a384388ad36777e1a2e121495037fe", "tool": "nuclei/Go", "severity": "medium"},
-      {"sid": 9000003, "ja3": "d12b36d1ef0d9915f23e2f80fc938d6b", "tool": "python3", "severity": "low"},
-      {"sid": 9000004, "ja3": "0a35e0b374f9077f46115637ab06ae88", "tool": "wget", "severity": "low"},
-      {"sid": 9000005, "ja3": "0659743d0a8904909448456a6dfa4b06", "tool": "curl", "severity": "info"},
-      {"sid": 9000006, "description": "TLS cipher enumeration burst (10+ in 60s)", "severity": "high"},
-      {"sid": 9000007, "ja3": "ee0799c323d74129b75b633dcfd41593", "tool": "nmap TLS 1.0", "severity": "high"}
+      {
+        "sid": 9000001,
+        "ja3": "f334454dc96768f9612d478fd7c91fe3",
+        "tool": "nmap",
+        "severity": "high"
+      },
+      {
+        "sid": 9000002,
+        "ja3": "11a384388ad36777e1a2e121495037fe",
+        "tool": "nuclei/Go",
+        "severity": "medium"
+      },
+      {
+        "sid": 9000003,
+        "ja3": "d12b36d1ef0d9915f23e2f80fc938d6b",
+        "tool": "python3",
+        "severity": "low"
+      },
+      {
+        "sid": 9000004,
+        "ja3": "0a35e0b374f9077f46115637ab06ae88",
+        "tool": "wget",
+        "severity": "low"
+      },
+      {
+        "sid": 9000005,
+        "ja3": "0659743d0a8904909448456a6dfa4b06",
+        "tool": "curl",
+        "severity": "info"
+      },
+      {
+        "sid": 9000006,
+        "description": "TLS cipher enumeration burst (10+ in 60s)",
+        "severity": "high"
+      },
+      {
+        "sid": 9000007,
+        "ja3": "ee0799c323d74129b75b633dcfd41593",
+        "tool": "nmap TLS 1.0",
+        "severity": "high"
+      }
     ]
   }
 }

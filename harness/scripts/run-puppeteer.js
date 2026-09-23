@@ -7,7 +7,7 @@
  * Usage: node run-puppeteer.js <target_url>
  */
 
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 
 const targetUrl = process.argv[2] || 'https://172.30.0.2:8443';
 
@@ -26,6 +26,7 @@ const pages = [
 (async () => {
     const browser = await puppeteer.launch({
         headless: true,
+        executablePath: '/usr/bin/chromium',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',

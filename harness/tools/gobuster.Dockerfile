@@ -1,4 +1,4 @@
-FROM golang:1.23 AS build
+FROM golang:latest AS build
 RUN go install github.com/OJ/gobuster/v3@latest
 FROM debian:bookworm-slim
 COPY --from=build /go/bin/gobuster /usr/local/bin/

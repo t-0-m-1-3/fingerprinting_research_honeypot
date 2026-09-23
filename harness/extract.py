@@ -61,31 +61,35 @@ def extract_ja3_from_pcap(pcap_path: Path) -> list[FingerprintObservation]:
 def extract_ja4_from_pcap(pcap_path: Path) -> dict[str, list[str]]:
     """Extract JA4 fingerprints grouped by source IP. Returns {ip: [ja4_strings]}.
 
-    Tries pyja4/ja4 CLI first, falls back to manual computation hint.
+    Uses ja4plus CLI (pip install ja4plus).
     """
     ja4_by_ip: dict[str, list[str]] = {}
 
-    # Try the ja4 CLI tool (pip install ja4 / pyja4)
-    for cmd in ["ja4", "python3 -m ja4"]:
+    # Try ja4plus CLI — venv path first since sg docker / nix-shell may lose PATH
+    venv_ja4 = str(Path(__file__).parent.parent / ".venv" / "bin" / "ja4plus")
+    for cmd in [[venv_ja4], ["ja4plus"], ["python3", "-m", "ja4plus"]]:
         try:
             result = subprocess.run(
-                cmd.split() + ["-r", str(pcap_path), "--json"],
-                capture_output=True, text=True, timeout=60,
+                cmd + ["--format", "json", "--types", "ja4",
+                       "analyze", str(pcap_path)],
+                capture_output=True, text=True, timeout=300,
             )
             if result.returncode == 0 and result.stdout.strip():
-                data = json.loads(result.stdout)
-                for entry in data:
-                    ip = entry.get("source_ip", entry.get("src", ""))
-                    ja4 = entry.get("ja4", entry.get("JA4", ""))
+                for line in result.stdout.strip().split("\n"):
+                    if not line.strip():
+                        continue
+                    entry = json.loads(line)
+                    ip = entry.get("src_ip", "")
+                    ja4 = entry.get("fingerprint", "")
                     if ip and ja4:
                         ja4_by_ip.setdefault(ip, []).append(ja4)
                 return ja4_by_ip
         except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
             continue
 
-    # Fallback: extract raw TLS fields for manual JA4 computation
-    print("  WARN: ja4 CLI not found. Extracting raw TLS fields for manual JA4 computation.")
-    print("  Install: pip install pyja4  OR  pip install ja4")
+    # Fallback: extract raw TLS fields via tshark
+    print("  WARN: ja4plus CLI not found. Install: pip install ja4plus")
+    print("  Falling back to raw TLS field extraction.")
 
     result = subprocess.run(
         [

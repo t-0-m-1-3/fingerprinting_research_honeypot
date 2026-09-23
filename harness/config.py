@@ -241,19 +241,20 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     "curl-impersonate-chrome": ToolSpec(
         name="curl-impersonate-chrome",
         category="cat4-evasion",
-        dockerfile="curl-impersonate.Dockerfile",
-        scan_command=["curl_chrome116", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}"],
+        dockerfile="curl-impersonate-chrome.Dockerfile",
+        scan_command=["curl_chrome110", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}"],
         static_ip="172.30.0.50",
         timeout_seconds=30,
-        version_command=["curl_chrome116", "--version"],
+        version_command=["curl_chrome110", "--version"],
     ),
     "curl-impersonate-firefox": ToolSpec(
         name="curl-impersonate-firefox",
         category="cat4-evasion",
-        dockerfile="curl-impersonate.Dockerfile",
+        dockerfile="curl-impersonate-firefox.Dockerfile",
         scan_command=["curl_ff117", "-sk", "{target_url}/", "-o", "/dev/null", "-w", "%{http_code}"],
         static_ip="172.30.0.51",
         timeout_seconds=30,
+        version_command=["curl_ff117", "--version"],
     ),
 
     # --- Category 5: Vuln scanners ---
@@ -268,17 +269,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         timeout_seconds=300,
         version_command=["zap.sh", "-version"],
     ),
-    "arachni": ToolSpec(
-        name="arachni",
-        category="cat5-vulnscanners",
-        dockerfile="arachni.Dockerfile",
-        scan_command=[
-            "arachni", "{target_url}", "--checks=*", "--scope-page-limit=20",
-        ],
-        static_ip="172.30.0.61",
-        timeout_seconds=300,
-        version_command=["arachni", "--version"],
-    ),
+    # arachni removed — project abandoned since 2021, GitHub release downloads broken
 }
 
 

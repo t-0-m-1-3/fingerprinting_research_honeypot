@@ -212,7 +212,7 @@ def main():
     # Start capture
     print("\n[2/5] Starting packet capture...")
     pcap_path = CAPTURES_DIR / f"{run_id}.pcap"
-    tcpdump_proc = start_capture(pcap_path)
+    start_capture(pcap_path)
 
     # Run tools
     print(f"\n[3/5] Running {len(tools)} tools...")
@@ -250,7 +250,7 @@ def main():
     # Stop capture
     print("\n[4/5] Stopping capture and extracting fingerprints...")
     time.sleep(2)  # Let final packets flush
-    stop_capture(tcpdump_proc)
+    stop_capture()
 
     # Extract fingerprints
     ja3_observations = extract_ja3_from_pcap(pcap_path)

@@ -1,4 +1,4 @@
-FROM golang:1.23 AS build
+FROM golang:latest AS build
 WORKDIR /app
 COPY scripts/run-utls.go .
 RUN go mod init utls-fingerprint && \

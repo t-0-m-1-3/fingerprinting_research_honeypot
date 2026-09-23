@@ -1,4 +1,4 @@
-FROM golang:1.23 AS build
+FROM golang:latest AS build
 RUN go install github.com/projectdiscovery/httpx/cmd/httpx@latest
 FROM debian:bookworm-slim
 COPY --from=build /go/bin/httpx /usr/local/bin/
