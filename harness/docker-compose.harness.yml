@@ -1,0 +1,64 @@
+# Fingerprinting harness network definition.
+#
+# The Python orchestrator (run.py) manages tool containers directly via
+# `docker run` for better lifecycle control. This compose file defines
+# the shared network and can optionally be used to bring up the honeypot.
+#
+# Usage:
+#   docker compose -f harness/docker-compose.harness.yml up honeypot -d
+
+networks:
+  harness-net:
+    name: harness-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+services:
+  honeypot:
+    build:
+      context: ../honeypot
+      dockerfile: Dockerfile
+    container_name: quiet-room-honeypot
+    restart: unless-stopped
+    networks:
+      harness-net:
+        ipv4_address: 172.30.0.2
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    volumes:
+      - certs:/opt/quiet-room/certs
+      - logs:/var/log/quiet-room
+    environment:
+      QUIET_ROOM_LOG_DIR: /var/log/quiet-room
+      QUIET_ROOM_CERT_DIR: /opt/quiet-room/certs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /opt/quiet-room/certs/server.crt ]; then
+          echo "Generating self-signed TLS certificate..."
+          openssl req -x509 -newkey rsa:2048 \
+            -keyout /opt/quiet-room/certs/server.key \
+            -out /opt/quiet-room/certs/server.crt \
+            -days 365 -nodes \
+            -subj "/CN=portal.acme-corp.internal/O=Acme Corp/C=US"
+        fi
+        exec gunicorn \
+          --bind 0.0.0.0:8080 \
+          --bind 0.0.0.0:8443 \
+          --certfile /opt/quiet-room/certs/server.crt \
+          --keyfile /opt/quiet-room/certs/server.key \
+          --access-logfile - \
+          --workers 2 \
+          app:app
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  certs:
+  logs:

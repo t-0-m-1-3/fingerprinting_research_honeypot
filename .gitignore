@@ -11,6 +11,10 @@ venv/
 !so-dashboard-scanner-detection.ndjson
 /logs/
 
+# Harness output
+harness/captures/
+harness/reports/
+
 # Docker
 .docker/
 
