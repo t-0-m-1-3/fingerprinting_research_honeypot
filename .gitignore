@@ -21,6 +21,12 @@ harness/reports/
 # AWS state
 .fingerprinting-honeypot-aws/
 
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl
+
 # OS
 .DS_Store
 Thumbs.db

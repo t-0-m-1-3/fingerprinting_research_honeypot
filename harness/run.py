@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -89,6 +90,89 @@ def ensure_honeypot() -> None:
     print("  WARN: Honeypot health check did not pass, proceeding anyway")
 
 
+def ensure_ollama() -> None:
+    """Start the Ollama sidecar container on harness-net and pull the model."""
+    # Check if already running with model present
+    result = subprocess.run(
+        ["docker", "inspect", config.OLLAMA_CONTAINER],
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        # Check if model is already pulled
+        model_check = subprocess.run(
+            ["docker", "exec", config.OLLAMA_CONTAINER, "ollama", "list"],
+            capture_output=True, text=True,
+        )
+        if config.OLLAMA_MODEL in (model_check.stdout or ""):
+            print(f"  Ollama ready at {config.OLLAMA_IP}:{config.OLLAMA_PORT} with {config.OLLAMA_MODEL}")
+            return
+        # Container exists but model missing — need to pull
+        print(f"  Ollama running but model {config.OLLAMA_MODEL} not found, pulling...")
+    else:
+        print(f"  Starting Ollama ({config.OLLAMA_IMAGE})...")
+        subprocess.run(
+            [
+                "docker", "run", "-d",
+                "--name", config.OLLAMA_CONTAINER,
+                "--network", config.HARNESS_NETWORK,
+                "--ip", config.OLLAMA_IP,
+                config.OLLAMA_IMAGE,
+            ],
+            check=True, capture_output=True,
+        )
+
+    # Wait for Ollama API to be ready
+    for i in range(30):
+        check = subprocess.run(
+            ["docker", "exec", config.OLLAMA_CONTAINER,
+             "ollama", "list"],
+            capture_output=True,
+        )
+        if check.returncode == 0:
+            break
+        time.sleep(2)
+    else:
+        print("  WARN: Ollama health check timed out")
+        return
+
+    # Check if model already exists
+    model_check = subprocess.run(
+        ["docker", "exec", config.OLLAMA_CONTAINER, "ollama", "list"],
+        capture_output=True, text=True,
+    )
+    if config.OLLAMA_MODEL in (model_check.stdout or ""):
+        print(f"  Ollama ready at {config.OLLAMA_IP}:{config.OLLAMA_PORT} with {config.OLLAMA_MODEL}")
+        return
+
+    # Temporarily connect to default bridge for internet access (model download)
+    print(f"  Pulling model {config.OLLAMA_MODEL} (connecting to internet temporarily)...")
+    subprocess.run(
+        ["docker", "network", "connect", "bridge", config.OLLAMA_CONTAINER],
+        capture_output=True,
+    )
+    try:
+        subprocess.run(
+            ["docker", "exec", config.OLLAMA_CONTAINER,
+             "ollama", "pull", config.OLLAMA_MODEL],
+            check=True, timeout=900,
+        )
+    finally:
+        # Always disconnect from internet after pull
+        subprocess.run(
+            ["docker", "network", "disconnect", "bridge", config.OLLAMA_CONTAINER],
+            capture_output=True,
+        )
+    print(f"  Ollama ready at {config.OLLAMA_IP}:{config.OLLAMA_PORT} with {config.OLLAMA_MODEL}")
+
+
+def stop_ollama() -> None:
+    """Stop and remove the Ollama sidecar container."""
+    subprocess.run(
+        ["docker", "rm", "-f", config.OLLAMA_CONTAINER],
+        capture_output=True,
+    )
+
+
 def build_tool_image(tool: config.ToolSpec) -> str:
     """Build the Docker image for a tool. Returns the image tag."""
     if not tool.dockerfile:
@@ -152,6 +236,26 @@ def run_tool(image: str, tool: config.ToolSpec) -> dict:
         wordlist_dir = HARNESS_DIR / "wordlists"
         docker_cmd += ["-v", f"{wordlist_dir}:/wordlists:ro"]
 
+    # Mount wrapper scripts if the scan command references them
+    scripts_dir = HARNESS_DIR / "scripts"
+    if any("/scripts/" in arg for arg in tool.scan_command):
+        docker_cmd += ["-v", f"{scripts_dir}:/scripts:ro"]
+
+    # Inject LLM provider env vars (API keys, endpoints)
+    for env_key, env_val in tool.llm_env_vars.items():
+        # Substitute target placeholders in env values
+        env_val = (env_val
+                   .replace("{target_url}", config.TARGET_URL)
+                   .replace("{target_ip}", config.HONEYPOT_IP)
+                   .replace("{target_port}", str(config.HONEYPOT_PORT)))
+        # Resolve {ENV_VAR} placeholders from host environment
+        if env_val.startswith("{") and env_val.endswith("}"):
+            host_key = env_val[1:-1]
+            env_val = os.environ.get(host_key, "")
+            if not env_val and host_key.endswith("_API_KEY"):
+                print(f"  WARN: {host_key} not set in environment")
+        docker_cmd += ["-e", f"{env_key}={env_val}"]
+
     docker_cmd += ["--entrypoint", ""]
     docker_cmd += [image] + cmd
 
@@ -205,9 +309,12 @@ def main():
         return
 
     # Setup
+    needs_ollama = any(t.needs_ollama for t in tools)
     print("\n[1/5] Setting up infrastructure...")
     ensure_network()
     ensure_honeypot()
+    if needs_ollama:
+        ensure_ollama()
 
     # Start capture
     print("\n[2/5] Starting packet capture...")

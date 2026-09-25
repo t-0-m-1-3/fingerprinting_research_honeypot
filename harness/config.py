@@ -8,6 +8,13 @@ HONEYPOT_IP = "172.30.0.2"
 HONEYPOT_PORT = 8443
 TARGET_URL = f"https://{HONEYPOT_IP}:{HONEYPOT_PORT}"
 
+# Ollama LLM sidecar for cat6-llm-local tools
+OLLAMA_IP = "172.30.0.3"
+OLLAMA_PORT = 11434
+OLLAMA_MODEL = "llama3.1:8b"
+OLLAMA_IMAGE = "ollama/ollama:latest"
+OLLAMA_CONTAINER = "harness-ollama"
+
 
 @dataclass
 class ToolSpec:
@@ -21,10 +28,14 @@ class ToolSpec:
     version_command: list[str] = field(default_factory=list)
     target_mode: str = "url"  # url | ip | host_port
     notes: str = ""
+    needs_ollama: bool = False  # requires Ollama sidecar on harness-net
+    llm_provider: str = ""  # ollama | openai | anthropic | etc.
+    llm_env_vars: dict[str, str] = field(default_factory=dict)  # injected into container
 
 
-# IP assignments: 172.30.0.2 = honeypot, 172.30.0.10+ = tools
+# IP assignments: 172.30.0.2 = honeypot, 172.30.0.3 = ollama, 172.30.0.10+ = tools
 # Cat 1: .10-.20, Cat 2: .30-.39, Cat 3: .40-.49, Cat 4: .50-.59, Cat 5: .60-.69
+# Cat 6: .70-.79 (LLM-local/Ollama), Cat 7: .80-.89 (LLM-cloud API)
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {
     # --- Built-in validation tool (no Dockerfile needed) ---
@@ -270,6 +281,92 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         version_command=["zap.sh", "-version"],
     ),
     # arachni removed — project abandoned since 2021, GitHub release downloads broken
+
+    # --- Category 6: LLM-powered (local/Ollama) ---
+    "pentest-swarm-ai": ToolSpec(
+        name="pentest-swarm-ai",
+        category="cat6-llm-local",
+        dockerfile="pentest-swarm-ai.Dockerfile",
+        scan_command=[
+            "sh", "/scripts/run-pentest-swarm-ai.sh",
+        ],
+        static_ip="172.30.0.70",
+        timeout_seconds=600,
+        needs_ollama=True,
+        llm_provider="ollama",
+        llm_env_vars={
+            "OLLAMA_HOST": f"http://{OLLAMA_IP}:{OLLAMA_PORT}",
+            "TARGET_URL": "{target_url}",
+            "TARGET_IP": "{target_ip}",
+        },
+        version_command=["pentestswarm", "--version"],
+        notes="Go multi-agent swarm, native HTTP to target. Go crypto/tls fingerprint.",
+    ),
+    "hackingbuddygpt": ToolSpec(
+        name="hackingbuddygpt",
+        category="cat6-llm-local",
+        dockerfile="hackingbuddygpt.Dockerfile",
+        scan_command=[
+            "sh", "/scripts/run-hackingbuddygpt.sh",
+        ],
+        static_ip="172.30.0.71",
+        timeout_seconds=600,
+        needs_ollama=True,
+        llm_provider="ollama",
+        llm_env_vars={
+            "TARGET_URL": "{target_url}",
+            "LLM_MODEL": f"ollama_chat/{OLLAMA_MODEL}",
+            "LLM_API_BASE": f"http://{OLLAMA_IP}:{OLLAMA_PORT}/v1",
+            "LLM_API_KEY": "dummy",
+            "MAX_ROUNDS": "30",
+            "OLLAMA_HOST": f"http://{OLLAMA_IP}:{OLLAMA_PORT}",
+            "OLLAMA_API_BASE": f"http://{OLLAMA_IP}:{OLLAMA_PORT}",
+        },
+        version_command=["wintermute", "--help"],
+        notes="Python httpx, LiteLLM. WebAPITesting mode makes direct HTTP to target.",
+    ),
+
+    # --- Category 7: LLM-powered (cloud API) ---
+    "strix": ToolSpec(
+        name="strix",
+        category="cat7-llm-cloud",
+        dockerfile="strix.Dockerfile",
+        scan_command=[
+            "strix", "scan", "{target_url}",
+        ],
+        static_ip="172.30.0.80",
+        timeout_seconds=600,
+        llm_provider="openai",
+        llm_env_vars={"OPENAI_API_KEY": "{OPENAI_API_KEY}"},
+        notes="Python/TS, OpenAI. 36k+ stars. AWS-only (needs internet for API).",
+    ),
+    "rogue": ToolSpec(
+        name="rogue",
+        category="cat7-llm-cloud",
+        dockerfile="rogue.Dockerfile",
+        scan_command=[
+            "python3", "/opt/rogue/main.py", "--target", "{target_url}",
+        ],
+        static_ip="172.30.0.81",
+        timeout_seconds=600,
+        llm_provider="openai",
+        llm_env_vars={"OPENAI_API_KEY": "{OPENAI_API_KEY}"},
+        notes="Python + Playwright/Chromium. Browser fingerprint + Python fingerprint.",
+    ),
+    "pentestgpt": ToolSpec(
+        name="pentestgpt",
+        category="cat7-llm-cloud",
+        dockerfile="pentestgpt.Dockerfile",
+        scan_command=[
+            "pentestgpt", "--target", "{target_ip}",
+            "--mode", "pentest", "--no-telemetry",
+        ],
+        static_ip="172.30.0.82",
+        timeout_seconds=600,
+        llm_provider="anthropic",
+        llm_env_vars={"ANTHROPIC_API_KEY": "{ANTHROPIC_API_KEY}"},
+        notes="Autonomous mode needs Claude SDK. 7k+ stars. AWS-only.",
+    ),
 }
 
 

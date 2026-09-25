@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and fill in values
+# NEVER commit terraform.tfvars — it contains API keys
+
+aws_region       = "us-east-1"
+key_name         = "my-ec2-keypair"
+allowed_ssh_cidr = "YOUR_IP/32"
+
+# LLM API keys (sensitive — set via TF_VAR_ env vars instead if preferred)
+openai_api_key    = ""
+anthropic_api_key = ""
+mistral_api_key   = ""
+
+# Override tool selection (default deploys strix, pentestgpt, rogue)
+# deploy_tools = { ... }
