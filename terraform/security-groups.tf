@@ -153,7 +153,15 @@ resource "aws_security_group" "tool" {
     to_port     = 53
     protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "DNS"
+    description = "DNS (UDP)"
+  }
+
+  egress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "DNS (TCP fallback for large responses/DNSSEC)"
   }
 
   tags = { Name = "harness-tool-sg" }

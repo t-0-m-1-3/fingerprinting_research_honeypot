@@ -1,3 +1,43 @@
+# IAM role for tool instances (ECR pull access)
+resource "aws_iam_role" "tool" {
+  name_prefix = "harness-tool-"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+
+  tags = { Name = "harness-tool-role" }
+}
+
+resource "aws_iam_role_policy" "tool_ecr" {
+  name_prefix = "ecr-pull-"
+  role        = aws_iam_role.tool.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetAuthorizationToken",
+      ]
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "tool" {
+  name_prefix = "harness-tool-"
+  role        = aws_iam_role.tool.name
+}
+
 # EC2 instances — honeypot, proxy, bastion, and per-tool runners
 
 # Bastion (public subnet, jump host)
@@ -59,10 +99,11 @@ resource "aws_instance" "tool" {
   key_name               = var.key_name
   subnet_id              = aws_subnet.private.id
   vpc_security_group_ids = [aws_security_group.tool.id]
+  iam_instance_profile   = aws_iam_instance_profile.tool.name
 
   user_data = templatefile("${path.module}/userdata/tool-runner.sh", {
     tool_name    = each.key
-    docker_image = each.value.docker_image
+    docker_image = "${aws_ecr_repository.tools[each.key].repository_url}:latest"
     scan_command = replace(each.value.scan_command, "HONEYPOT_IP", "10.0.2.10")
     proxy_host   = "10.0.1.50"
     proxy_port   = 3128

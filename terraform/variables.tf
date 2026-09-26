@@ -65,19 +65,19 @@ variable "deploy_tools" {
       llm_api_domains = ["api.openai.com"]
       api_key_var     = "openai_api_key"
       docker_image    = "harness-strix:latest"
-      scan_command    = "strix scan https://HONEYPOT_IP:8443"
-    }
-    pentestgpt = {
-      llm_api_domains = ["api.anthropic.com"]
-      api_key_var     = "anthropic_api_key"
-      docker_image    = "harness-pentestgpt:latest"
-      scan_command    = "pentestgpt --target HONEYPOT_IP --mode pentest --no-telemetry"
+      scan_command    = "strix -t https://HONEYPOT_IP:8443 -m quick --max-turns 20 --max-budget 5"
     }
     rogue = {
       llm_api_domains = ["api.openai.com"]
       api_key_var     = "openai_api_key"
       docker_image    = "harness-rogue:latest"
-      scan_command    = "python3 /opt/rogue/main.py --target https://HONEYPOT_IP:8443"
+      scan_command    = "python3 /opt/rogue/run.py -u https://HONEYPOT_IP:8443 -p 3 -i 5 -m o4-mini"
+    }
+    xalgorix = {
+      llm_api_domains = ["api.anthropic.com"]
+      api_key_var     = "anthropic_api_key"
+      docker_image    = "harness-xalgorix:latest"
+      scan_command    = "xalgorix scan https://HONEYPOT_IP:8443"
     }
   }
 }

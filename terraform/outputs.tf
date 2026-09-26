@@ -37,3 +37,8 @@ output "nat_gateway_ip" {
   description = "NAT gateway public IP (outbound IP for all tool traffic)"
   value       = aws_eip.nat.public_ip
 }
+
+output "ecr_repositories" {
+  description = "ECR repository URLs for tool images"
+  value       = { for k, v in aws_ecr_repository.tools : k => v.repository_url }
+}

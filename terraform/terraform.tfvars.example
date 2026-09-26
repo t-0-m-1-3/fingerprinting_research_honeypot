@@ -10,5 +10,5 @@ openai_api_key    = ""
 anthropic_api_key = ""
 mistral_api_key   = ""
 
-# Override tool selection (default deploys strix, pentestgpt, rogue)
+# Override tool selection (default deploys strix, rogue, xalgorix)
 # deploy_tools = { ... }

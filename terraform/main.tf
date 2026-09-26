@@ -21,6 +21,23 @@ provider "aws" {
   }
 }
 
+# ECR repository for tool Docker images
+resource "aws_ecr_repository" "tools" {
+  for_each = var.deploy_tools
+
+  name                 = "fingerprint-harness/${each.key}"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  image_scanning_configuration {
+    scan_on_push = false
+  }
+
+  tags = { Name = "harness-${each.key}" }
+}
+
+data "aws_caller_identity" "current" {}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
