@@ -23,11 +23,17 @@
 | nmap 7.95 | NSE OpenSSL | `t13i711000_8f28d1f76561_8e6e362c5eac` + 55 probes | *(not run on AWS)* | `8f28d1f76561` | `8e6e362c5eac` | 90 |
 | nuclei 3.3.7 | Go crypto/tls | `t13i251000_b78ed14e2fd0_ab7e3b40a677` | *(not run on AWS)* | `b78ed14e2fd0` | `ab7e3b40a677` | 377 |
 
-### 1.2 LLM Agent Fingerprint
+### 1.2 LLM Agent / Tool Fingerprints
 
-| Agent | TLS Library | JA4 | Cipher Hash | Ext Hash | Source IPs | Sessions |
-|-------|------------|-----|-------------|----------|------------|----------|
-| Claude WebFetch | Go crypto/tls | `t13d131100_f57a46bbacb6_e5728521abd4` | `f57a46bbacb6` | `e5728521abd4` | 158.69.55.82, 158.69.117.45, 193.239.237.77 | 89 |
+| Agent/Tool | TLS Library | JA4 (harness) | Cipher Hash | Ext Hash | Sessions |
+|------------|------------|---------------|-------------|----------|----------|
+| Claude WebFetch | Go crypto/tls | `t13d131100_f57a46bbacb6_e5728521abd4` | `f57a46bbacb6` | `e5728521abd4` | 89 (AWS) |
+| hackingBuddyGPT | Python httpx | `t13i1712h1_ab0a1bf427ad_ecd0401ec68b` | `ab0a1bf427ad` | `ecd0401ec68b` | 5 |
+| strix | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | 4 |
+| rogue | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | 4 |
+| pentest-swarm-ai* | curl/libcurl | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | 4 |
+
+\* curl fallback fingerprint; Go crypto/tls fingerprint pending full LLM-driven scan.
 
 ### 1.3 JA3 Fingerprints (Legacy)
 
@@ -83,14 +89,23 @@ WebFetch uses a modern minimal cipher suite (13 ciphers — only TLS 1.3 + ECDHE
 
 ### 2.4 Fingerprint Groupings by JA4 Cipher Hash
 
-| Cipher Hash | Cipher Count | Tools Sharing |
-|-------------|-------------|---------------|
-| `1d37bd780c83` | 30 | curl, libcurl-based tools, OpenSSL CLI |
-| `13e0e9e1c501` | 68 | wget, GnuTLS-linked applications |
-| `ab0a1bf427ad` | 17 | urllib, requests, httpx, scrapy, any Python HTTP library |
-| `b78ed14e2fd0` | 25 | nuclei, httpx (Go), gobuster, ffuf, subfinder |
-| `f57a46bbacb6` | 13 | Claude WebFetch, modern Go services |
-| `8f28d1f76561` | 71 | nmap ssl-enum-ciphers (primary probe) |
+| Cipher Hash | Cipher Count | TLS Library | Tools Sharing |
+|-------------|-------------|-------------|---------------|
+| `ab0a1bf427ad` | 17 | Python ssl (OpenSSL) | python3, dirsearch, **hackingbuddygpt**, **strix**, **rogue** |
+| `8daaf6152771` | 15 | BoringSSL (Chromium) | selenium-chrome, playwright-chromium, puppeteer, curl-impersonate-chrome |
+| `1d37bd780c83` | 30 | OpenSSL / libcurl | curl, feroxbuster, wpscan, nikto |
+| `b78ed14e2fd0` | 25 | Go crypto/tls (legacy) | nuclei, httpx (Go), katana |
+| `5b57614c22b0` | 17 | NSS (Firefox) | selenium-firefox, playwright-firefox, curl-impersonate-firefox |
+| `e8f1e7e78f70` | 31 | libcurl/OpenSSL | dirb, **pentest-swarm-ai** (curl fallback) |
+| `f57a46bbacb6` | 13 | Go crypto/tls (modern) | Claude WebFetch, gobuster |
+| `13e0e9e1c501` | 68 | GnuTLS | wget |
+| `8f28d1f76561` | 71 | NSE OpenSSL | nmap ssl-enum-ciphers (primary probe) |
+| `9dc949149365` | 19 | Go crypto/tls (custom) | ffuf |
+| `723694b0fccc` | 29 | Apple TLS | playwright-webkit |
+| `1d947a95fc68` | 31 | Java JSSE | ZAP |
+| `5177063c590b` | 86 | Python ssl (legacy) | sqlmap |
+
+**Bold** = LLM-powered tools. Note: all LLM tools share cipher_hashes with traditional tools.
 
 ### 2.5 Wild Scanner Activity (AWS)
 
