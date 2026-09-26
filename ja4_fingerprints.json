@@ -841,6 +841,142 @@
         "first_run_id": "a0782286",
         "last_run_id": "a0782286"
       }
+    },
+    {
+      "tool": "hackingbuddygpt",
+      "version": "hackingBuddyGPT (git HEAD, 2026-09-25)",
+      "platform": "Python 3.13 (Docker bookworm-slim)",
+      "tls_library": "OpenSSL via Python ssl module (httpx)",
+      "category": "cat6-llm-local",
+      "llm_provider": "ollama",
+      "ja3_hash": {
+        "harness": "63df4a17564841f603a2c87addad697c"
+      },
+      "ja4": {
+        "harness": "t13i1712h1_ab0a1bf427ad_ecd0401ec68b"
+      },
+      "ja4_components": {
+        "cipher_hash": "ab0a1bf427ad",
+        "ext_hash": "ecd0401ec68b",
+        "cipher_count": 17,
+        "alpn": "h1"
+      },
+      "sessions_observed": {
+        "harness": 5
+      },
+      "behavior": "Python httpx HTTP client makes HTTPS requests to target. LLM (Ollama) drives reconnaissance decisions. Each turn produces 1-3 HTTP requests.",
+      "detection_confidence": "medium",
+      "notes": "Identical JA4 to dirsearch — both use Python httpx (same cipher_hash ab0a1bf427ad + ext_hash ecd0401ec68b). Cannot distinguish hackingBuddyGPT from dirsearch by TLS fingerprint alone. Behavioral analysis needed: hackingBuddyGPT makes fewer, more targeted requests with longer inter-request intervals (LLM inference time).",
+      "shared_fingerprint_with": ["dirsearch"],
+      "harness_metadata": {
+        "first_seen": "2026-09-25T23:56:53.350679+00:00",
+        "last_seen": "2026-09-25T23:56:53.350679+00:00",
+        "first_run_id": "llm-tools-test",
+        "last_run_id": "llm-tools-test",
+        "source_pcap": "llm-tools-test.pcap"
+      }
+    },
+    {
+      "tool": "strix",
+      "version": "strix-agent (pip, 2026-09-25)",
+      "platform": "Python 3.12 (Docker bookworm-slim)",
+      "tls_library": "OpenSSL via Python ssl module (requests)",
+      "category": "cat7-llm-cloud",
+      "llm_provider": "openai",
+      "ja3_hash": {
+        "harness": "84330a279f90d61388a8bfc7cb80535f"
+      },
+      "ja4": {
+        "harness": "t13i1712h1_ab0a1bf427ad_8537cf56674e"
+      },
+      "ja4_components": {
+        "cipher_hash": "ab0a1bf427ad",
+        "ext_hash": "8537cf56674e",
+        "cipher_count": 17,
+        "alpn": "h1"
+      },
+      "sessions_observed": {
+        "harness": 4
+      },
+      "behavior": "Python requests HTTP client. OpenAI API drives scan decisions. Makes targeted HTTP requests to target URL.",
+      "detection_confidence": "medium",
+      "notes": "Same cipher_hash as all Python ssl tools (ab0a1bf427ad) but ext_hash 8537cf56674e differs from httpx (ecd0401ec68b). Shared fingerprint with rogue and wpscan — all use Python requests library. requests and httpx are distinguishable by JA4 ext_hash.",
+      "shared_fingerprint_with": ["rogue", "wpscan"],
+      "harness_metadata": {
+        "first_seen": "2026-09-25T23:57:10.845087+00:00",
+        "last_seen": "2026-09-25T23:57:10.845087+00:00",
+        "first_run_id": "llm-tools-test",
+        "last_run_id": "llm-tools-test",
+        "source_pcap": "llm-tools-test.pcap"
+      }
+    },
+    {
+      "tool": "rogue",
+      "version": "rogue (git HEAD, 2026-09-25)",
+      "platform": "Python 3.12 + Playwright/Chromium (Docker bookworm-slim)",
+      "tls_library": "OpenSSL via Python ssl module (requests) + Chromium BoringSSL (Playwright)",
+      "category": "cat7-llm-cloud",
+      "llm_provider": "openai",
+      "ja3_hash": {
+        "harness": "84330a279f90d61388a8bfc7cb80535f"
+      },
+      "ja4": {
+        "harness": "t13i1712h1_ab0a1bf427ad_8537cf56674e"
+      },
+      "ja4_components": {
+        "cipher_hash": "ab0a1bf427ad",
+        "ext_hash": "8537cf56674e",
+        "cipher_count": 17,
+        "alpn": "h1"
+      },
+      "sessions_observed": {
+        "harness": 4
+      },
+      "behavior": "Dual fingerprint tool: Python requests for API probing + Playwright/Chromium for browser-rendered pages. Test capture only shows requests fingerprint. Full scan would also produce Chromium BoringSSL fingerprint (cipher_hash 8daaf6152771).",
+      "detection_confidence": "medium",
+      "notes": "Identical JA4 to strix — both use Python requests. In full scan mode, rogue also launches Playwright/Chromium which would produce a second, browser-like fingerprint. Two distinct JA4s from one source IP is a detection signal.",
+      "shared_fingerprint_with": ["strix", "wpscan"],
+      "harness_metadata": {
+        "first_seen": "2026-09-25T23:57:18.111124+00:00",
+        "last_seen": "2026-09-25T23:57:18.111124+00:00",
+        "first_run_id": "llm-tools-test",
+        "last_run_id": "llm-tools-test",
+        "source_pcap": "llm-tools-test.pcap"
+      }
+    },
+    {
+      "tool": "pentest-swarm-ai",
+      "version": "Pentest-Swarm-AI (Go, git HEAD, 2026-09-25)",
+      "platform": "Go (Docker bookworm-slim)",
+      "tls_library": "Go crypto/tls (native) + curl/libcurl (fallback)",
+      "category": "cat6-llm-local",
+      "llm_provider": "ollama",
+      "ja3_hash": {
+        "harness": "64545e1f496c8efac973ef5020a87a78"
+      },
+      "ja4": {
+        "harness": "t13i3111h2_e8f1e7e78f70_b26ce05bbdd6"
+      },
+      "ja4_components": {
+        "cipher_hash": "e8f1e7e78f70",
+        "ext_hash": "b26ce05bbdd6",
+        "cipher_count": 31,
+        "alpn": "h2"
+      },
+      "sessions_observed": {
+        "harness": 4
+      },
+      "behavior": "Go multi-agent swarm. Test capture shows curl/libcurl fingerprint (container curl binary used for validation). Full LLM-driven scan needed to capture Go crypto/tls fingerprint from pentestswarm's native HTTP client.",
+      "detection_confidence": "pending",
+      "notes": "WARNING: This JA4 is from the container's curl binary, NOT pentestswarm's Go HTTP client. Matches dirb's fingerprint (both curl/libcurl on Debian). A full Ollama-driven scan is needed to capture the actual Go crypto/tls fingerprint, which should match nuclei/gobuster cipher_hash (b78ed14e2fd0) or be unique depending on Go version and TLS config.",
+      "shared_fingerprint_with": ["dirb"],
+      "harness_metadata": {
+        "first_seen": "2026-09-25T23:57:01.184855+00:00",
+        "last_seen": "2026-09-25T23:57:01.184855+00:00",
+        "first_run_id": "llm-tools-test",
+        "last_run_id": "llm-tools-test",
+        "source_pcap": "llm-tools-test.pcap"
+      }
     }
   ],
   "wild_scanner_fingerprints": {
@@ -933,7 +1069,13 @@
         "name": "SCAN-JA4-PYTHON-SSL",
         "match": "ja4_cipher_hash == 'ab0a1bf427ad'",
         "severity": "low",
-        "notes": "Python ssl module (17 ciphers). Very common for bots, scrapers, and legitimate automation."
+        "notes": "Python ssl module (17 ciphers). Very common for bots, scrapers, and legitimate automation. Shared by httpx (hackingBuddyGPT, dirsearch) and requests (strix, rogue, wpscan). Differentiate by ext_hash: ecd0401ec68b = httpx, 8537cf56674e = requests."
+      },
+      {
+        "name": "SCAN-JA4-LLM-BEHAVIORAL",
+        "match": "ja4_cipher_hash == 'ab0a1bf427ad' AND requests_per_minute < 5 AND inter_request_interval > 10s",
+        "severity": "medium",
+        "notes": "LLM-powered scanner heuristic: Python SSL fingerprint with unusually low request rate and long pauses (LLM inference time between requests). Traditional scanners using the same fingerprint send hundreds/thousands of requests per minute."
       }
     ],
     "ja3_based_suricata": [
@@ -978,6 +1120,51 @@
         "tool": "nmap TLS 1.0",
         "severity": "high"
       }
+    ]
+  },
+  "llm_tool_analysis": {
+    "description": "Analysis of LLM-powered penetration testing tools and their TLS fingerprints",
+    "date": "2026-09-25",
+    "key_findings": [
+      "LLM-powered pentest tools do NOT produce unique TLS fingerprints — they inherit their HTTP library's fingerprint",
+      "hackingBuddyGPT (httpx) is indistinguishable from dirsearch by JA4 alone",
+      "strix and rogue (both Python requests) share identical JA4 fingerprints",
+      "httpx and requests are distinguishable by JA4 ext_hash despite sharing cipher_hash ab0a1bf427ad",
+      "Behavioral analysis is the primary detection vector: LLM tools have 10-60s pauses between requests (inference time) vs traditional scanners that send hundreds/sec"
+    ],
+    "fingerprint_groupings": {
+      "python_httpx": {
+        "ja4_ext_hash": "ecd0401ec68b",
+        "cipher_hash": "ab0a1bf427ad",
+        "tools": ["hackingbuddygpt", "dirsearch"]
+      },
+      "python_requests": {
+        "ja4_ext_hash": "8537cf56674e",
+        "cipher_hash": "ab0a1bf427ad",
+        "tools": ["strix", "rogue", "wpscan"]
+      },
+      "go_crypto_tls_modern": {
+        "cipher_hash": "pending",
+        "tools": ["pentest-swarm-ai"],
+        "notes": "Need full Ollama-driven scan to capture Go HTTP client fingerprint"
+      }
+    },
+    "detection_strategy": {
+      "tls_fingerprint_alone": "Insufficient — LLM tools reuse common library fingerprints",
+      "behavioral_signals": [
+        "Low request rate (1-5 req/min vs 100+ for traditional scanners)",
+        "Long inter-request intervals (10-60s, caused by LLM inference)",
+        "Targeted paths (LLM chooses endpoints vs brute-force wordlists)",
+        "Adaptive behavior (requests change based on previous responses)",
+        "Mixed fingerprints from one IP (rogue: Python requests + Chromium)"
+      ],
+      "combined_approach": "JA4 cipher_hash ab0a1bf427ad (Python) + request rate < 5/min + inter-request interval > 10s → high confidence LLM-powered scanner"
+    },
+    "pending_work": [
+      "pentest-swarm-ai: Capture Go crypto/tls fingerprint from actual pentestswarm HTTP client (not curl)",
+      "xalgorix: Build and test — Go + Chromium dual fingerprint expected",
+      "Cloud API tools: Deploy to AWS, capture with real LLM API connectivity",
+      "Full LLM-driven scans: Run hackingBuddyGPT and pentest-swarm-ai through complete Ollama scans to validate behavioral patterns"
     ]
   }
 }

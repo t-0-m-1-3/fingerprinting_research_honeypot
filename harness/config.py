@@ -1,5 +1,6 @@
 """Tool registry and configuration for the fingerprinting harness."""
 
+import os
 from dataclasses import dataclass, field
 
 HARNESS_NETWORK = "harness-net"
@@ -11,7 +12,7 @@ TARGET_URL = f"https://{HONEYPOT_IP}:{HONEYPOT_PORT}"
 # Ollama LLM sidecar for cat6-llm-local tools
 OLLAMA_IP = "172.30.0.3"
 OLLAMA_PORT = 11434
-OLLAMA_MODEL = "llama3.1:8b"
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
 OLLAMA_IMAGE = "ollama/ollama:latest"
 OLLAMA_CONTAINER = "harness-ollama"
 
@@ -296,6 +297,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         llm_provider="ollama",
         llm_env_vars={
             "OLLAMA_HOST": f"http://{OLLAMA_IP}:{OLLAMA_PORT}",
+            "OLLAMA_MODEL": OLLAMA_MODEL,
             "TARGET_URL": "{target_url}",
             "TARGET_IP": "{target_ip}",
         },
@@ -332,41 +334,51 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         category="cat7-llm-cloud",
         dockerfile="strix.Dockerfile",
         scan_command=[
-            "strix", "scan", "{target_url}",
+            "strix", "-t", "{target_url}",
+            "-m", "quick",
+            "--max-turns", "20",
+            "--max-budget", "5",
         ],
         static_ip="172.30.0.80",
         timeout_seconds=600,
         llm_provider="openai",
         llm_env_vars={"OPENAI_API_KEY": "{OPENAI_API_KEY}"},
-        notes="Python/TS, OpenAI. 36k+ stars. AWS-only (needs internet for API).",
+        version_command=["strix", "--version"],
+        notes="Python (strix-agent), OpenAI. AWS-only (needs internet for API).",
     ),
     "rogue": ToolSpec(
         name="rogue",
         category="cat7-llm-cloud",
         dockerfile="rogue.Dockerfile",
         scan_command=[
-            "python3", "/opt/rogue/main.py", "--target", "{target_url}",
+            "python3", "/opt/rogue/run.py",
+            "-u", "{target_url}",
+            "-p", "3",
+            "-i", "5",
+            "-m", "o4-mini",
         ],
         static_ip="172.30.0.81",
         timeout_seconds=600,
         llm_provider="openai",
         llm_env_vars={"OPENAI_API_KEY": "{OPENAI_API_KEY}"},
+        version_command=["python3", "/opt/rogue/run.py", "--help"],
         notes="Python + Playwright/Chromium. Browser fingerprint + Python fingerprint.",
     ),
-    "pentestgpt": ToolSpec(
-        name="pentestgpt",
+    "xalgorix": ToolSpec(
+        name="xalgorix",
         category="cat7-llm-cloud",
-        dockerfile="pentestgpt.Dockerfile",
+        dockerfile="xalgorix.Dockerfile",
         scan_command=[
-            "pentestgpt", "--target", "{target_ip}",
-            "--mode", "pentest", "--no-telemetry",
+            "xalgorix", "scan", "{target_url}",
         ],
         static_ip="172.30.0.82",
         timeout_seconds=600,
         llm_provider="anthropic",
         llm_env_vars={"ANTHROPIC_API_KEY": "{ANTHROPIC_API_KEY}"},
-        notes="Autonomous mode needs Claude SDK. 7k+ stars. AWS-only.",
+        notes="Go crypto/tls + Chromium. Two TLS fingerprints (Go + browser). AWS-only.",
     ),
+    # pentestgpt: Excluded — delegates to external tools via MCP/Claude Code SDK.
+    # ChatAFL: Excluded — raw socket fuzzing, no TLS layer.
 }
 
 

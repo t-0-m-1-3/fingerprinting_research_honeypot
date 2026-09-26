@@ -58,10 +58,15 @@ def extract_ja3_from_pcap(pcap_path: Path) -> list[FingerprintObservation]:
     return observations
 
 
-def extract_ja4_from_pcap(pcap_path: Path) -> dict[str, list[str]]:
+def extract_ja4_from_pcap(pcap_path: Path, dest_ip: str | None = None) -> dict[str, list[str]]:
     """Extract JA4 fingerprints grouped by source IP. Returns {ip: [ja4_strings]}.
 
     Uses ja4plus CLI (pip install ja4plus).
+
+    Args:
+        dest_ip: If set, only include ClientHellos destined for this IP.
+                 Use "172.30.0.2" to filter to honeypot traffic only
+                 (excludes Ollama/LLM API traffic).
     """
     ja4_by_ip: dict[str, list[str]] = {}
 
@@ -80,7 +85,10 @@ def extract_ja4_from_pcap(pcap_path: Path) -> dict[str, list[str]]:
                         continue
                     entry = json.loads(line)
                     ip = entry.get("src_ip", "")
+                    dst = entry.get("dst_ip", "")
                     ja4 = entry.get("fingerprint", "")
+                    if dest_ip and dst != dest_ip:
+                        continue
                     if ip and ja4:
                         ja4_by_ip.setdefault(ip, []).append(ja4)
                 return ja4_by_ip

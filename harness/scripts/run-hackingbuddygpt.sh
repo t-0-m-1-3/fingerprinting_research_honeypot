@@ -4,7 +4,7 @@
 set -e
 
 TARGET_URL="${TARGET_URL:-https://172.30.0.2:8443}"
-LLM_MODEL="${LLM_MODEL:-ollama_chat/llama3.1:8b}"
+LLM_MODEL="${LLM_MODEL:-ollama_chat/llama3.2:3b}"
 LLM_API_BASE="${LLM_API_BASE:-http://172.30.0.3:11434/v1}"
 LLM_API_KEY="${LLM_API_KEY:-dummy}"
 MAX_ROUNDS="${MAX_ROUNDS:-30}"
@@ -30,7 +30,7 @@ exec wintermute WebAPITesting \
   --llm.model "$LLM_MODEL" \
   --llm.api_base "$LLM_API_BASE" \
   --llm.api_key "$LLM_API_KEY" \
-  --llm.context_size 8192 \
+  --llm.context_size 4096 \
   --config_path /tmp/target_config.json \
   --limits.max_rounds "$MAX_ROUNDS" \
   --limits.max_cost 0 \
