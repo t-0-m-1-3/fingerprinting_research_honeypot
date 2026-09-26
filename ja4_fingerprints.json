@@ -960,32 +960,38 @@
       "category": "cat6-llm-local",
       "llm_provider": "ollama",
       "ja3_hash": {
-        "harness": "64545e1f496c8efac973ef5020a87a78"
+        "harness_go": "pending",
+        "harness_curl": "64545e1f496c8efac973ef5020a87a78"
       },
       "ja4": {
-        "harness": "t13i3111h2_e8f1e7e78f70_b26ce05bbdd6"
+        "harness_go": "t13i131000_f57a46bbacb6_f50d94e863eb",
+        "harness_curl": "t13i3111h2_e8f1e7e78f70_b26ce05bbdd6"
       },
       "ja4_components": {
-        "cipher_hash": "e8f1e7e78f70",
-        "ext_hash": "b26ce05bbdd6",
-        "cipher_count": 31,
-        "alpn": "h2"
+        "go_cipher_hash": "f57a46bbacb6",
+        "go_ext_hash": "f50d94e863eb",
+        "go_cipher_count": 13,
+        "curl_cipher_hash": "e8f1e7e78f70",
+        "curl_ext_hash": "b26ce05bbdd6",
+        "curl_cipher_count": 31,
+        "alpn": "none"
       },
       "sessions_observed": {
-        "harness": 4
+        "harness": 9
       },
-      "behavior": "Go multi-agent swarm. Test capture shows curl/libcurl fingerprint (container curl binary used for validation). Full LLM-driven scan needed to capture Go crypto/tls fingerprint from pentestswarm's native HTTP client.",
-      "detection_confidence": "pending",
-      "notes": "WARNING: This JA4 is from the container's curl binary, NOT pentestswarm's Go HTTP client. Matches dirb's fingerprint (both curl/libcurl on Debian). A full Ollama-driven scan is needed to capture the actual Go crypto/tls fingerprint, which should match nuclei/gobuster cipher_hash (b78ed14e2fd0) or be unique depending on Go version and TLS config.",
+      "behavior": "Go multi-agent swarm with dual fingerprint: Go crypto/tls (native HTTP client, cipher_hash f57a46bbacb6) and curl/libcurl (fallback, cipher_hash e8f1e7e78f70). The Go fingerprint matches Claude WebFetch and gobuster — modern Go TLS with 13 ciphers.",
+      "detection_confidence": "medium",
+      "notes": "Go crypto/tls fingerprint (f57a46bbacb6) matches Claude WebFetch, gobuster, and modern Go services. Cannot distinguish pentest-swarm-ai from other modern Go tools by JA4 alone. The dual fingerprint (Go + curl from same IP) is a potential detection signal.",
       "shared_fingerprint_with": [
-        "dirb"
+        "claude_webfetch",
+        "gobuster"
       ],
       "harness_metadata": {
         "first_seen": "2026-09-25T23:57:01.184855+00:00",
         "last_seen": "2026-09-25T23:57:01.184855+00:00",
         "first_run_id": "llm-tools-test",
         "last_run_id": "llm-tools-test",
-        "source_pcap": "llm-tools-test.pcap"
+        "source_pcap": "go-fingerprint-test.pcap + llm-tools-test.pcap"
       }
     }
   ],

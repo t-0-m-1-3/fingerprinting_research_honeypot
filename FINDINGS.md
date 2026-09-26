@@ -31,9 +31,8 @@
 | hackingBuddyGPT | Python httpx | `t13i1712h1_ab0a1bf427ad_ecd0401ec68b` | `ab0a1bf427ad` | `ecd0401ec68b` | 5 |
 | strix | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | 4 |
 | rogue | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | 4 |
-| pentest-swarm-ai* | curl/libcurl | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | 4 |
-
-\* curl fallback fingerprint; Go crypto/tls fingerprint pending full LLM-driven scan.
+| pentest-swarm-ai | Go crypto/tls | `t13i131000_f57a46bbacb6_f50d94e863eb` | `f57a46bbacb6` | `f50d94e863eb` | 5 |
+| pentest-swarm-ai | curl/libcurl (fallback) | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | 4 |
 
 ### 1.3 JA3 Fingerprints (Legacy)
 
@@ -96,8 +95,8 @@ WebFetch uses a modern minimal cipher suite (13 ciphers — only TLS 1.3 + ECDHE
 | `1d37bd780c83` | 30 | OpenSSL / libcurl | curl, feroxbuster, wpscan, nikto |
 | `b78ed14e2fd0` | 25 | Go crypto/tls (legacy) | nuclei, httpx (Go), katana |
 | `5b57614c22b0` | 17 | NSS (Firefox) | selenium-firefox, playwright-firefox, curl-impersonate-firefox |
-| `e8f1e7e78f70` | 31 | libcurl/OpenSSL | dirb, **pentest-swarm-ai** (curl fallback) |
-| `f57a46bbacb6` | 13 | Go crypto/tls (modern) | Claude WebFetch, gobuster |
+| `e8f1e7e78f70` | 31 | libcurl/OpenSSL | dirb, pentest-swarm-ai (curl fallback) |
+| `f57a46bbacb6` | 13 | Go crypto/tls (modern) | Claude WebFetch, gobuster, **pentest-swarm-ai** |
 | `13e0e9e1c501` | 68 | GnuTLS | wget |
 | `8f28d1f76561` | 71 | NSE OpenSSL | nmap ssl-enum-ciphers (primary probe) |
 | `9dc949149365` | 19 | Go crypto/tls (custom) | ffuf |
@@ -276,9 +275,8 @@ The coordinated scanner on AWS demonstrated active JA3 randomization: same ciphe
 | hackingBuddyGPT | `t13i1712h1_ab0a1bf427ad_ecd0401ec68b` | `ab0a1bf427ad` | `ecd0401ec68b` | **dirsearch** (both httpx) |
 | strix | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | **rogue, wpscan** (all requests) |
 | rogue | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | **strix, wpscan** (all requests) |
-| pentest-swarm-ai* | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | **dirb** (both curl/libcurl) |
-
-\* pentest-swarm-ai capture shows curl fingerprint, not Go crypto/tls. Full LLM-driven scan needed.
+| pentest-swarm-ai (Go) | `t13i131000_f57a46bbacb6_f50d94e863eb` | `f57a46bbacb6` | `f50d94e863eb` | **Claude WebFetch, gobuster** (all Go modern) |
+| pentest-swarm-ai (curl) | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | **dirb** (both curl/libcurl) |
 
 ### 8.3 Key Finding: LLM Tools Don't Produce New TLS Fingerprints
 
@@ -322,16 +320,19 @@ AND inter_request_interval_avg > 10s
 
 ### 8.6 Dual-Fingerprint Tools
 
-Rogue (and xalgorix, pending) use both Python requests AND Playwright/Chromium, producing **two distinct JA4 fingerprints from a single source IP**:
+Multiple LLM tools produce **two distinct JA4 fingerprints from a single source IP**:
 
-1. Python requests: `t13i1712h1_ab0a1bf427ad_8537cf56674e`
-2. Chromium (expected): `t13i1515h2_8daaf6152771_*` (BoringSSL)
+| Tool | Fingerprint 1 | Fingerprint 2 |
+|------|---------------|---------------|
+| rogue | Python requests (`ab0a1bf427ad`) | Chromium/BoringSSL (expected) |
+| pentest-swarm-ai | Go crypto/tls (`f57a46bbacb6`) | curl/libcurl (`e8f1e7e78f70`) |
+| xalgorix (pending) | Go crypto/tls (`f57a46bbacb6`) | Chromium/BoringSSL (expected) |
 
-Seeing both Python SSL and Chromium fingerprints from the same IP is a detection signal — no legitimate browser-based application also makes raw Python HTTP requests.
+Seeing two different TLS fingerprints from the same IP is a detection signal — no legitimate single application mixes HTTP library stacks.
 
 ## 9. Next Steps
 
-- Capture pentest-swarm-ai's Go crypto/tls fingerprint from an actual LLM-driven scan
+- ~~Capture pentest-swarm-ai's Go crypto/tls fingerprint~~ — Done: `f57a46bbacb6` (modern Go, matches WebFetch/gobuster)
 - Build and test xalgorix (Go + Chromium dual fingerprint)
 - Deploy cloud tools to AWS with per-tool egress filtering via Squid proxy
 - Test JA3 randomization tools (ja3transport, utls) to validate evasion detection
