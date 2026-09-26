@@ -33,6 +33,8 @@
 | rogue | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | 4 |
 | pentest-swarm-ai | Go crypto/tls | `t13i131000_f57a46bbacb6_f50d94e863eb` | `f57a46bbacb6` | `f50d94e863eb` | 5 |
 | pentest-swarm-ai | curl/libcurl (fallback) | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | 4 |
+| xalgorix | Go 1.26 crypto/tls | `t13i131000_f57a46bbacb6_ab7e3b40a677` | `f57a46bbacb6` | `ab7e3b40a677` | 5 |
+| xalgorix | curl/libcurl (container) | `t13i9012h2_c6771aded2ed_57a60bdf03d1` | `c6771aded2ed` | `57a60bdf03d1` | 5 |
 
 ### 1.3 JA3 Fingerprints (Legacy)
 
@@ -96,7 +98,8 @@ WebFetch uses a modern minimal cipher suite (13 ciphers — only TLS 1.3 + ECDHE
 | `b78ed14e2fd0` | 25 | Go crypto/tls (legacy) | nuclei, httpx (Go), katana |
 | `5b57614c22b0` | 17 | NSS (Firefox) | selenium-firefox, playwright-firefox, curl-impersonate-firefox |
 | `e8f1e7e78f70` | 31 | libcurl/OpenSSL | dirb, pentest-swarm-ai (curl fallback) |
-| `f57a46bbacb6` | 13 | Go crypto/tls (modern) | Claude WebFetch, gobuster, **pentest-swarm-ai** |
+| `f57a46bbacb6` | 13 | Go crypto/tls (modern) | Claude WebFetch, gobuster, **pentest-swarm-ai**, **xalgorix** |
+| `c6771aded2ed` | 90 | curl/OpenSSL (xalgorix container) | **xalgorix** (curl fallback) — unique build |
 | `13e0e9e1c501` | 68 | GnuTLS | wget |
 | `8f28d1f76561` | 71 | NSE OpenSSL | nmap ssl-enum-ciphers (primary probe) |
 | `9dc949149365` | 19 | Go crypto/tls (custom) | ffuf |
@@ -267,6 +270,7 @@ The coordinated scanner on AWS demonstrated active JA3 randomization: same ciphe
 | pentest-swarm-ai | Go | crypto/tls + curl | Ollama (local) | cat6-llm-local |
 | strix | Python 3.12 | requests | OpenAI (cloud) | cat7-llm-cloud |
 | rogue | Python 3.12 + Playwright | requests + Chromium | OpenAI (cloud) | cat7-llm-cloud |
+| xalgorix | Go 1.26 + Chromium | crypto/tls + curl | Anthropic (cloud) | cat7-llm-cloud |
 
 ### 8.2 JA4 Fingerprints
 
@@ -277,6 +281,8 @@ The coordinated scanner on AWS demonstrated active JA3 randomization: same ciphe
 | rogue | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | **strix, wpscan** (all requests) |
 | pentest-swarm-ai (Go) | `t13i131000_f57a46bbacb6_f50d94e863eb` | `f57a46bbacb6` | `f50d94e863eb` | **Claude WebFetch, gobuster** (all Go modern) |
 | pentest-swarm-ai (curl) | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | **dirb** (both curl/libcurl) |
+| xalgorix (Go 1.26) | `t13i131000_f57a46bbacb6_ab7e3b40a677` | `f57a46bbacb6` | `ab7e3b40a677` | **Claude WebFetch, gobuster** (cipher_hash); ext_hash differs from Go 1.23 |
+| xalgorix (curl) | `t13i9012h2_c6771aded2ed_57a60bdf03d1` | `c6771aded2ed` | `57a60bdf03d1` | **unique** — different OpenSSL/curl build |
 
 ### 8.3 Key Finding: LLM Tools Don't Produce New TLS Fingerprints
 
@@ -297,6 +303,18 @@ Despite sharing cipher_hash `ab0a1bf427ad` (Python ssl module), httpx and reques
 | requests | `8537cf56674e` | 12 | h1 |
 
 The difference is in the TLS extensions offered. This allows distinguishing httpx-based tools (dirsearch, hackingBuddyGPT) from requests-based tools (strix, rogue, wpscan).
+
+### 8.4.1 Go Version Distinguishable by JA4 ext_hash
+
+Go crypto/tls tools sharing cipher_hash `f57a46bbacb6` (modern Go, 13 ciphers) produce **different ext_hashes depending on Go version**:
+
+| Go Version | ext_hash | Tools |
+|-----------|----------|-------|
+| Go 1.23 | `f50d94e863eb` | pentest-swarm-ai (golang:latest) |
+| Go 1.26 | `ab7e3b40a677` | xalgorix |
+| Go ~1.22 (AWS) | `e5728521abd4` | Claude WebFetch |
+
+This means JA4 can narrow down Go toolchain versions even when cipher suites are identical — the TLS extension list evolves between Go releases.
 
 ### 8.5 Behavioral Detection: The Only Reliable Signal
 
@@ -326,14 +344,14 @@ Multiple LLM tools produce **two distinct JA4 fingerprints from a single source 
 |------|---------------|---------------|
 | rogue | Python requests (`ab0a1bf427ad`) | Chromium/BoringSSL (expected) |
 | pentest-swarm-ai | Go crypto/tls (`f57a46bbacb6`) | curl/libcurl (`e8f1e7e78f70`) |
-| xalgorix (pending) | Go crypto/tls (`f57a46bbacb6`) | Chromium/BoringSSL (expected) |
+| xalgorix | Go 1.26 crypto/tls (`f57a46bbacb6`) | curl/OpenSSL (`c6771aded2ed`) + Chromium (untested) |
 
 Seeing two different TLS fingerprints from the same IP is a detection signal — no legitimate single application mixes HTTP library stacks.
 
 ## 9. Next Steps
 
 - ~~Capture pentest-swarm-ai's Go crypto/tls fingerprint~~ — Done: `f57a46bbacb6` (modern Go, matches WebFetch/gobuster)
-- Build and test xalgorix (Go + Chromium dual fingerprint)
+- ~~Build and test xalgorix~~ — Done: Go 1.26 `f57a46bbacb6`/`ab7e3b40a677` + curl `c6771aded2ed`/`57a60bdf03d1`. Go ext_hash differs between Go 1.23 and 1.26.
 - Deploy cloud tools to AWS with per-tool egress filtering via Squid proxy
 - Test JA3 randomization tools (ja3transport, utls) to validate evasion detection
 - Deploy ADS queries to Security Onion / Splunk and tune thresholds against production traffic

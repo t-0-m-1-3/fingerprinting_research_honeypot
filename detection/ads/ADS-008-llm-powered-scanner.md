@@ -60,7 +60,7 @@ Multiple LLM tools produce **two distinct JA4 fingerprints from one source IP**:
 |------|---------------|---------------|
 | rogue | Python requests (`ab0a1bf427ad`) | Chromium/BoringSSL (`8daaf6152771`) |
 | pentest-swarm-ai | Go crypto/tls (`f57a46bbacb6`) | curl/libcurl (`e8f1e7e78f70`) |
-| xalgorix | Go crypto/tls (`f57a46bbacb6`) | Chromium/BoringSSL (expected) |
+| xalgorix | Go 1.26 crypto/tls (`f57a46bbacb6`) | curl/OpenSSL (`c6771aded2ed`) + Chromium (untested) |
 
 No legitimate single application mixes HTTP library stacks. Seeing two different cipher_hashes from the same IP is a strong indicator of a multi-component scanning tool.
 
@@ -167,7 +167,7 @@ index=zeek sourcetype=zeek:ssl
         BY id_orig_h
 | where unique_cipher_hashes >= 2
 | eval python_chromium = if(match(cipher_hashes, "ab0a1bf427ad") AND match(cipher_hashes, "8daaf6152771"), "yes", "no")
-| eval go_curl = if(match(cipher_hashes, "f57a46bbacb6") AND match(cipher_hashes, "e8f1e7e78f70"), "yes", "no")
+| eval go_curl = if(match(cipher_hashes, "f57a46bbacb6") AND (match(cipher_hashes, "e8f1e7e78f70") OR match(cipher_hashes, "c6771aded2ed")), "yes", "no")
 | where python_chromium="yes" OR go_curl="yes"
 | table id_orig_h, total_sessions, cipher_hashes, python_chromium, go_curl
 ```

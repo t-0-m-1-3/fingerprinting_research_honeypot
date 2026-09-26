@@ -9,7 +9,7 @@
       "capture_interface": "eth0 on LXC 148",
       "source_ip": "192.168.1.45",
       "tls_cert": "self-signed (no SNI)",
-      "notes": "Local scans have no SNI extension — JA4 prefix uses 'i' flag and has 1 fewer extension than AWS scans"
+      "notes": "Local scans have no SNI extension \u2014 JA4 prefix uses 'i' flag and has 1 fewer extension than AWS scans"
     },
     "aws": {
       "target": "32.192.255.152:443 (32-192-255-152.sslip.io)",
@@ -17,7 +17,7 @@
       "capture_interface": "eth0 on EC2 i-0d31a4cf0ad48813c",
       "source_ip": "68.161.211.69 (workstation), 158.69.55.82/158.69.117.45/193.239.237.77 (WebFetch)",
       "tls_cert": "Let's Encrypt (sslip.io, SNI present)",
-      "notes": "AWS scans have SNI — JA4 prefix uses 'd' flag. Cipher and extension hashes remain stable across environments."
+      "notes": "AWS scans have SNI \u2014 JA4 prefix uses 'd' flag. Cipher and extension hashes remain stable across environments."
     }
   },
   "ja4_format_reference": {
@@ -96,7 +96,7 @@
         "local": 3,
         "aws": 3
       },
-      "behavior": "One TLS handshake per request. GnuTLS offers 68 cipher suites — the largest of any tool tested. No ALPN.",
+      "behavior": "One TLS handshake per request. GnuTLS offers 68 cipher suites \u2014 the largest of any tool tested. No ALPN.",
       "detection_confidence": "high",
       "notes": "GnuTLS fingerprint with unusually large cipher suite list (68 including CAMELLIA, ARIA). Unique among common tools."
     },
@@ -123,7 +123,7 @@
         "local": 10,
         "aws": 5
       },
-      "behavior": "Same fingerprint for urllib, http.client, requests, httpx — all use Python ssl module. Smallest cipher set (17) of any tested tool.",
+      "behavior": "Same fingerprint for urllib, http.client, requests, httpx \u2014 all use Python ssl module. Smallest cipher set (17) of any tested tool.",
       "detection_confidence": "high",
       "notes": "Python ssl.create_default_context() aggressively filters cipher suites. One of the most common bot/scraper fingerprints on the internet."
     },
@@ -161,8 +161,8 @@
       "detection_signals": [
         "Primary JA4 cipher_hash 8f28d1f76561 with 71 ciphers",
         "55+ unique JA4 fingerprints from single source within seconds",
-        "SSLv3 probes (ts3i*) — no legitimate modern client uses SSLv3",
-        "TLS 1.0 probes (t10i*) — extremely rare in modern traffic",
+        "SSLv3 probes (ts3i*) \u2014 no legitimate modern client uses SSLv3",
+        "TLS 1.0 probes (t10i*) \u2014 extremely rare in modern traffic",
         "Extension hash 99875426d20b shared across all TLS 1.2 cipher probes"
       ],
       "notes": "Trivially detectable: 55+ distinct JA4s in rapid succession, including SSLv3 and TLS 1.0 probes. The primary probe's 71-cipher suite count is also abnormally high."
@@ -189,7 +189,7 @@
       },
       "behavior": "Single consistent fingerprint across all 377 requests. 377 handshakes in ~3 seconds. No ALPN.",
       "detection_confidence": "very_high",
-      "notes": "Go crypto/tls fingerprint (25 ciphers, no ALPN). Shared by nuclei, gobuster, ffuf, subfinder, and other Go security tools. Different from WebFetch's Go fingerprint (13 ciphers) — nuclei uses an older Go TLS configuration."
+      "notes": "Go crypto/tls fingerprint (25 ciphers, no ALPN). Shared by nuclei, gobuster, ffuf, subfinder, and other Go security tools. Different from WebFetch's Go fingerprint (13 ciphers) \u2014 nuclei uses an older Go TLS configuration."
     },
     {
       "tool": "claude_webfetch",
@@ -217,7 +217,7 @@
       "sessions_observed": {
         "aws": 89
       },
-      "behavior": "89 TLS sessions across 3 source IPs. Consistent fingerprint. All sessions to same domain. Go crypto/tls but with only 13 ciphers — a much more restricted set than nuclei's 25.",
+      "behavior": "89 TLS sessions across 3 source IPs. Consistent fingerprint. All sessions to same domain. Go crypto/tls but with only 13 ciphers \u2014 a much more restricted set than nuclei's 25.",
       "detection_confidence": "high",
       "notes": "Anthropic's WebFetch uses Go crypto/tls but with a modern, minimal cipher suite (13 ciphers including only TLS 1.3 and ECDHE suites). Distinct from nuclei/gobuster Go fingerprints which offer 25 ciphers including legacy suites. The cipher_hash f57a46bbacb6 is unique to this Go TLS configuration."
     },
@@ -866,7 +866,7 @@
       },
       "behavior": "Python httpx HTTP client makes HTTPS requests to target. LLM (Ollama) drives reconnaissance decisions. Each turn produces 1-3 HTTP requests.",
       "detection_confidence": "medium",
-      "notes": "Identical JA4 to dirsearch — both use Python httpx (same cipher_hash ab0a1bf427ad + ext_hash ecd0401ec68b). Cannot distinguish hackingBuddyGPT from dirsearch by TLS fingerprint alone. Behavioral analysis needed: hackingBuddyGPT makes fewer, more targeted requests with longer inter-request intervals (LLM inference time).",
+      "notes": "Identical JA4 to dirsearch \u2014 both use Python httpx (same cipher_hash ab0a1bf427ad + ext_hash ecd0401ec68b). Cannot distinguish hackingBuddyGPT from dirsearch by TLS fingerprint alone. Behavioral analysis needed: hackingBuddyGPT makes fewer, more targeted requests with longer inter-request intervals (LLM inference time).",
       "shared_fingerprint_with": [
         "dirsearch"
       ],
@@ -902,7 +902,7 @@
       },
       "behavior": "Python requests HTTP client. OpenAI API drives scan decisions. Makes targeted HTTP requests to target URL.",
       "detection_confidence": "medium",
-      "notes": "Same cipher_hash as all Python ssl tools (ab0a1bf427ad) but ext_hash 8537cf56674e differs from httpx (ecd0401ec68b). Shared fingerprint with rogue and wpscan — all use Python requests library. requests and httpx are distinguishable by JA4 ext_hash.",
+      "notes": "Same cipher_hash as all Python ssl tools (ab0a1bf427ad) but ext_hash 8537cf56674e differs from httpx (ecd0401ec68b). Shared fingerprint with rogue and wpscan \u2014 all use Python requests library. requests and httpx are distinguishable by JA4 ext_hash.",
       "shared_fingerprint_with": [
         "rogue",
         "wpscan"
@@ -939,7 +939,7 @@
       },
       "behavior": "Dual fingerprint tool: Python requests for API probing + Playwright/Chromium for browser-rendered pages. Test capture only shows requests fingerprint. Full scan would also produce Chromium BoringSSL fingerprint (cipher_hash 8daaf6152771).",
       "detection_confidence": "medium",
-      "notes": "Identical JA4 to strix — both use Python requests. In full scan mode, rogue also launches Playwright/Chromium which would produce a second, browser-like fingerprint. Two distinct JA4s from one source IP is a detection signal.",
+      "notes": "Identical JA4 to strix \u2014 both use Python requests. In full scan mode, rogue also launches Playwright/Chromium which would produce a second, browser-like fingerprint. Two distinct JA4s from one source IP is a detection signal.",
       "shared_fingerprint_with": [
         "strix",
         "wpscan"
@@ -950,6 +950,50 @@
         "first_run_id": "llm-tools-test",
         "last_run_id": "llm-tools-test",
         "source_pcap": "llm-tools-test.pcap"
+      }
+    },
+    {
+      "tool": "xalgorix",
+      "version": "xalgorix (Docker xalgord/xalgorix:latest, Go 1.26.5)",
+      "platform": "Go 1.26 + Chromium (Docker, 19.3GB all-in-one)",
+      "tls_library": "Go crypto/tls (native) + curl/libcurl (container)",
+      "category": "cat7-llm-cloud",
+      "llm_provider": "anthropic",
+      "ja3_hash": {
+        "harness_go": "725543c78edf669194c11dc7a039b56e",
+        "harness_curl": "adc2bd4bb269872516eeaa7ade78fe75"
+      },
+      "ja4": {
+        "harness_go": "t13i131000_f57a46bbacb6_ab7e3b40a677",
+        "harness_curl": "t13i9012h2_c6771aded2ed_57a60bdf03d1"
+      },
+      "ja4_components": {
+        "go_cipher_hash": "f57a46bbacb6",
+        "go_ext_hash": "ab7e3b40a677",
+        "go_cipher_count": 13,
+        "curl_cipher_hash": "c6771aded2ed",
+        "curl_ext_hash": "57a60bdf03d1",
+        "curl_cipher_count": 90,
+        "alpn": "none (Go) / h2 (curl)"
+      },
+      "sessions_observed": {
+        "harness": 10
+      },
+      "behavior": "Dual fingerprint tool: Go HTTP client for API/scanning + Chromium for browser-rendered DAST. Curl also available in container (different fingerprint from Go). Go 1.26 has different ext_hash (ab7e3b40a677) than Go 1.23 (f50d94e863eb) despite same cipher_hash \u2014 version-distinguishable.",
+      "detection_confidence": "medium",
+      "notes": "Go crypto/tls cipher_hash f57a46bbacb6 shared with Claude WebFetch, gobuster, pentest-swarm-ai (all modern Go). Go 1.26 ext_hash ab7e3b40a677 matches nuclei/httpx-go (legacy Go) \u2014 same extensions but different cipher list. Curl inside container uses different OpenSSL config than system curl, producing unique cipher_hash c6771aded2ed.",
+      "shared_fingerprint_with": [
+        "claude-webfetch (cipher_hash)",
+        "gobuster (cipher_hash)",
+        "pentest-swarm-ai (cipher_hash)",
+        "nuclei (ext_hash ab7e3b40a677)"
+      ],
+      "harness_metadata": {
+        "first_seen": "2026-09-26T03:55:00+00:00",
+        "last_seen": "2026-09-26T03:55:00+00:00",
+        "first_run_id": "xalgorix-test",
+        "last_run_id": "xalgorix-test",
+        "source_pcap": "xalgorix-test.pcap"
       }
     },
     {
@@ -979,7 +1023,7 @@
       "sessions_observed": {
         "harness": 9
       },
-      "behavior": "Go multi-agent swarm with dual fingerprint: Go crypto/tls (native HTTP client, cipher_hash f57a46bbacb6) and curl/libcurl (fallback, cipher_hash e8f1e7e78f70). The Go fingerprint matches Claude WebFetch and gobuster — modern Go TLS with 13 ciphers.",
+      "behavior": "Go multi-agent swarm with dual fingerprint: Go crypto/tls (native HTTP client, cipher_hash f57a46bbacb6) and curl/libcurl (fallback, cipher_hash e8f1e7e78f70). The Go fingerprint matches Claude WebFetch and gobuster \u2014 modern Go TLS with 13 ciphers.",
       "detection_confidence": "medium",
       "notes": "Go crypto/tls fingerprint (f57a46bbacb6) matches Claude WebFetch, gobuster, and modern Go services. Cannot distinguish pentest-swarm-ai from other modern Go tools by JA4 alone. The dual fingerprint (Go + curl from same IP) is a potential detection signal.",
       "shared_fingerprint_with": [
@@ -1014,8 +1058,8 @@
         "t11d6911h9_ea0618708e31_52c4d8bb91c9",
         "t13d6412h9_0f757fa8abd0_1da015a32102"
       ],
-      "behavior": "5 IPs performing identical nmap-style cipher enumeration within the same 2-minute window. Same cipher suites but randomized TLS extension ordering — active JA3 evasion. JA4 cipher hashes (ea0618708e31) remain consistent across the coordinated scan.",
-      "notes": "JA3 randomization detected: same cipher suites, randomized extensions. JA4's sorted hashing partially defeats this — cipher_hash ea0618708e31 is shared across many of these probes."
+      "behavior": "5 IPs performing identical nmap-style cipher enumeration within the same 2-minute window. Same cipher suites but randomized TLS extension ordering \u2014 active JA3 evasion. JA4 cipher hashes (ea0618708e31) remain consistent across the coordinated scan.",
+      "notes": "JA3 randomization detected: same cipher suites, randomized extensions. JA4's sorted hashing partially defeats this \u2014 cipher_hash ea0618708e31 is shared across many of these probes."
     },
     "persistent_go_scanner": {
       "source_ips": [
@@ -1027,7 +1071,7 @@
         "45.153.102.164": "t13d131000_f57a46bbacb6_e7c285222651"
       },
       "total_sessions": 50,
-      "notes": "Go crypto/tls with same cipher_hash as WebFetch (f57a46bbacb6) but from known scanner IPs. Demonstrates that Go's cipher_hash alone cannot distinguish legitimate from malicious Go clients — behavioral analysis needed."
+      "notes": "Go crypto/tls with same cipher_hash as WebFetch (f57a46bbacb6) but from known scanner IPs. Demonstrates that Go's cipher_hash alone cannot distinguish legitimate from malicious Go clients \u2014 behavioral analysis needed."
     },
     "misc_scanners": {
       "description": "Various single-session probes from different IPs",
@@ -1045,7 +1089,7 @@
           "ja4": "t13d1011h2_61a7ad8aa9b6_d4929ced8316"
         }
       ],
-      "notes": "Single-request probes. Cipher hash 8daaf6152771 appears across multiple IPs — likely a shared scanning framework."
+      "notes": "Single-request probes. Cipher hash 8daaf6152771 appears across multiple IPs \u2014 likely a shared scanning framework."
     }
   },
   "detection_rules": {
@@ -1061,13 +1105,13 @@
         "name": "SCAN-JA4-NMAP-SSLV3",
         "match": "ja4 starts with 'ts3'",
         "severity": "high",
-        "notes": "SSLv3 ClientHello — no legitimate modern client uses SSLv3"
+        "notes": "SSLv3 ClientHello \u2014 no legitimate modern client uses SSLv3"
       },
       {
         "name": "SCAN-JA4-NMAP-TLS10",
         "match": "ja4 starts with 't10'",
         "severity": "medium",
-        "notes": "TLS 1.0 ClientHello — very rare in modern traffic, usually cipher enumeration"
+        "notes": "TLS 1.0 ClientHello \u2014 very rare in modern traffic, usually cipher enumeration"
       },
       {
         "name": "SCAN-JA4-NUCLEI-GO",
@@ -1079,7 +1123,7 @@
         "name": "SCAN-JA4-WGET",
         "match": "ja4_cipher_hash == '13e0e9e1c501'",
         "severity": "low",
-        "notes": "GnuTLS with 68 cipher suites — unique to wget and GnuTLS clients"
+        "notes": "GnuTLS with 68 cipher suites \u2014 unique to wget and GnuTLS clients"
       },
       {
         "name": "SCAN-JA4-PYTHON-SSL",
@@ -1142,7 +1186,7 @@
     "description": "Analysis of LLM-powered penetration testing tools and their TLS fingerprints",
     "date": "2026-09-25",
     "key_findings": [
-      "LLM-powered pentest tools do NOT produce unique TLS fingerprints — they inherit their HTTP library's fingerprint",
+      "LLM-powered pentest tools do NOT produce unique TLS fingerprints \u2014 they inherit their HTTP library's fingerprint",
       "hackingBuddyGPT (httpx) is indistinguishable from dirsearch by JA4 alone",
       "strix and rogue (both Python requests) share identical JA4 fingerprints",
       "httpx and requests are distinguishable by JA4 ext_hash despite sharing cipher_hash ab0a1bf427ad",
@@ -1175,7 +1219,7 @@
       }
     },
     "detection_strategy": {
-      "tls_fingerprint_alone": "Insufficient — LLM tools reuse common library fingerprints",
+      "tls_fingerprint_alone": "Insufficient \u2014 LLM tools reuse common library fingerprints",
       "behavioral_signals": [
         "Low request rate (1-5 req/min vs 100+ for traditional scanners)",
         "Long inter-request intervals (10-60s, caused by LLM inference)",
@@ -1183,11 +1227,11 @@
         "Adaptive behavior (requests change based on previous responses)",
         "Mixed fingerprints from one IP (rogue: Python requests + Chromium)"
       ],
-      "combined_approach": "JA4 cipher_hash ab0a1bf427ad (Python) + request rate < 5/min + inter-request interval > 10s → high confidence LLM-powered scanner"
+      "combined_approach": "JA4 cipher_hash ab0a1bf427ad (Python) + request rate < 5/min + inter-request interval > 10s \u2192 high confidence LLM-powered scanner"
     },
     "pending_work": [
       "pentest-swarm-ai: Capture Go crypto/tls fingerprint from actual pentestswarm HTTP client (not curl)",
-      "xalgorix: Build and test — Go + Chromium dual fingerprint expected",
+      "xalgorix: Build and test \u2014 Go + Chromium dual fingerprint expected",
       "Cloud API tools: Deploy to AWS, capture with real LLM API connectivity",
       "Full LLM-driven scans: Run hackingBuddyGPT and pentest-swarm-ai through complete Ollama scans to validate behavioral patterns"
     ]
