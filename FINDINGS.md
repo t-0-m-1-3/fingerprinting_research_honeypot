@@ -231,25 +231,102 @@ The coordinated scanner on AWS demonstrated active JA3 randomization: same ciphe
 
 | File | Description |
 |------|-------------|
-| `ja4_fingerprints.json` | v2.1 fingerprint database — 29 tools, JA3 + JA4 from local, AWS, and harness environments |
+| `ja4_fingerprints.json` | v2.1 fingerprint database — 33 tools (29 traditional + 4 LLM-powered), JA3 + JA4 from local, AWS, and harness environments |
 | `suricata-ja3-rules.rules` | Suricata JA3 rules (SIDs 9000001-9000007) |
 | `so-dashboard-scanner-detection.ndjson` | Kibana/OpenSearch saved objects for scanner detection dashboard |
 | `aws-deploy.sh` | 4-phase AWS deployment script (deploy/scan/collect/destroy) |
 | `honeypot/app.py` | Honeypot Flask application with 10 canary token types |
 | `harness/` | Dockerized fingerprinting harness — 22 tools in isolated containers |
-| `detection/ads/` | 7 Alerting Detection Strategy documents (Palantir framework) with SIGMA/Splunk/Elastic queries |
+| `detection/ads/` | 8 Alerting Detection Strategy documents (Palantir framework) with SIGMA/Splunk/Elastic queries |
 
-## 8. Next Steps
+## 8. LLM-Powered Pentest Tool Fingerprints
 
-- Complete LLM agent testing — ChatGPT browsing, Perplexity, Gemini (requires AWS instance)
+**Date:** 2026-09-25
+**Environment:** Docker harness (harness-net, 172.30.0.0/24) with Ollama sidecar (llama3.2:3b)
+**PCAP:** `harness/captures/llm-tools-test.pcap` (131KB)
+
+### 8.1 Tools Tested
+
+| Tool | Language | HTTP Library | LLM Provider | Category |
+|------|----------|-------------|-------------|----------|
+| hackingBuddyGPT | Python 3.13 | httpx | Ollama (local) | cat6-llm-local |
+| pentest-swarm-ai | Go | crypto/tls + curl | Ollama (local) | cat6-llm-local |
+| strix | Python 3.12 | requests | OpenAI (cloud) | cat7-llm-cloud |
+| rogue | Python 3.12 + Playwright | requests + Chromium | OpenAI (cloud) | cat7-llm-cloud |
+
+### 8.2 JA4 Fingerprints
+
+| Tool | JA4 | Cipher Hash | Ext Hash | Shared With |
+|------|-----|-------------|----------|-------------|
+| hackingBuddyGPT | `t13i1712h1_ab0a1bf427ad_ecd0401ec68b` | `ab0a1bf427ad` | `ecd0401ec68b` | **dirsearch** (both httpx) |
+| strix | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | **rogue, wpscan** (all requests) |
+| rogue | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | `8537cf56674e` | **strix, wpscan** (all requests) |
+| pentest-swarm-ai* | `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` | `e8f1e7e78f70` | `b26ce05bbdd6` | **dirb** (both curl/libcurl) |
+
+\* pentest-swarm-ai capture shows curl fingerprint, not Go crypto/tls. Full LLM-driven scan needed.
+
+### 8.3 Key Finding: LLM Tools Don't Produce New TLS Fingerprints
+
+**LLM-powered pentest tools inherit their HTTP library's TLS fingerprint.** They do not produce unique ClientHellos — the LLM drives the *logic* (what to scan, what paths to try), but the *network layer* is a standard HTTP library.
+
+This means:
+- hackingBuddyGPT is **indistinguishable** from dirsearch by JA4 alone (both httpx)
+- strix is **indistinguishable** from rogue or wpscan by JA4 alone (all requests)
+- TLS fingerprinting cannot detect "LLM-powered" as a category
+
+### 8.4 httpx vs requests: Distinguishable by JA4
+
+Despite sharing cipher_hash `ab0a1bf427ad` (Python ssl module), httpx and requests produce **different ext_hashes**:
+
+| Library | Ext Hash | Extension Count | ALPN |
+|---------|----------|-----------------|------|
+| httpx | `ecd0401ec68b` | 12 | h1 |
+| requests | `8537cf56674e` | 12 | h1 |
+
+The difference is in the TLS extensions offered. This allows distinguishing httpx-based tools (dirsearch, hackingBuddyGPT) from requests-based tools (strix, rogue, wpscan).
+
+### 8.5 Behavioral Detection: The Only Reliable Signal
+
+Since TLS fingerprints can't identify LLM scanners, **behavioral analysis is the primary detection vector**:
+
+| Signal | Traditional Scanner | LLM Scanner |
+|--------|-------------------|-------------|
+| Request rate | 100-10,000+ req/min | 1-5 req/min |
+| Inter-request interval | <100ms | 10-60s (LLM inference) |
+| Path selection | Wordlist brute-force | Targeted, adaptive |
+| Response analysis | Pattern matching | Semantic understanding |
+| Request sequence | Predictable order | Context-dependent |
+
+**Proposed detection rule:**
+```
+JA4 cipher_hash == 'ab0a1bf427ad' (Python)
+AND requests_per_minute < 5
+AND inter_request_interval_avg > 10s
+→ MEDIUM confidence: LLM-powered scanner
+```
+
+### 8.6 Dual-Fingerprint Tools
+
+Rogue (and xalgorix, pending) use both Python requests AND Playwright/Chromium, producing **two distinct JA4 fingerprints from a single source IP**:
+
+1. Python requests: `t13i1712h1_ab0a1bf427ad_8537cf56674e`
+2. Chromium (expected): `t13i1515h2_8daaf6152771_*` (BoringSSL)
+
+Seeing both Python SSL and Chromium fingerprints from the same IP is a detection signal — no legitimate browser-based application also makes raw Python HTTP requests.
+
+## 9. Next Steps
+
+- Capture pentest-swarm-ai's Go crypto/tls fingerprint from an actual LLM-driven scan
+- Build and test xalgorix (Go + Chromium dual fingerprint)
+- Deploy cloud tools to AWS with per-tool egress filtering via Squid proxy
 - Test JA3 randomization tools (ja3transport, utls) to validate evasion detection
 - Deploy ADS queries to Security Onion / Splunk and tune thresholds against production traffic
 - Build canary trigger dashboard (Grafana or Kibana) for real-time monitoring
-- Integrate JA4 cipher_hash-based detection into Suricata (more portable than JA3 rules)
+- Write ADS-008 for LLM-powered scanner detection (behavioral + TLS combined)
 
-## 9. Alerting Detection Strategies
+## 10. Alerting Detection Strategies
 
-Seven ADS documents following the [Palantir ADS Framework](https://github.com/palantir/alerting-detection-strategy-framework), each containing SIGMA rules, Splunk SPL, and Elastic KQL queries:
+Eight ADS documents following the [Palantir ADS Framework](https://github.com/palantir/alerting-detection-strategy-framework), each containing SIGMA rules, Splunk SPL, and Elastic KQL queries:
 
 | ADS | Detection | MITRE ATT&CK | Priority | Key Signal |
 |-----|-----------|-------------|----------|------------|
@@ -260,5 +337,6 @@ Seven ADS documents following the [Palantir ADS Framework](https://github.com/pa
 | [ADS-005](detection/ads/ADS-005-canary-token-correlation.md) | Canary Token Correlation | T1595.002, T1190 | P1-P3 tiered | Canary type determines priority; multi-canary = P1 |
 | [ADS-006](detection/ads/ADS-006-browser-impersonation.md) | Browser Impersonation | T1036, T1071.001 | P3 Medium | Browser cipher_hash + non-browser ext_hash mismatch |
 | [ADS-007](detection/ads/ADS-007-deprecated-tls-protocol.md) | Deprecated TLS Protocol | T1046, T1595.002 | P1 Critical | JA4 prefix `ts3`/`t10`/`t11` — zero legitimate use |
+| [ADS-008](detection/ads/ADS-008-llm-powered-scanner.md) | LLM-Powered Scanner | T1595.002, T1190 | P2 High | Python SSL + low rate + long intervals + canary |
 
 See [`detection/ads/README.md`](detection/ads/README.md) for log field schema and platform field mappings.

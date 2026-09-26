@@ -13,6 +13,7 @@ Detection strategies for TLS-fingerprinted scanner activity, following the [Pala
 | [ADS-005](ADS-005-canary-token-correlation.md) | Canary Token Correlation | T1595.002, T1190 | P1-P3 tiered | Canary type determines priority |
 | [ADS-006](ADS-006-browser-impersonation.md) | Browser Impersonation | T1036, T1071.001 | P3 Medium | Browser cipher_hash + non-browser ext_hash |
 | [ADS-007](ADS-007-deprecated-tls-protocol.md) | Deprecated TLS Protocol | T1046, T1595.002 | P1 Critical | JA4 prefix `ts3`/`t10` |
+| [ADS-008](ADS-008-llm-powered-scanner.md) | LLM-Powered Scanner | T1595.002, T1190 | P2 High | Python SSL + low rate + long intervals |
 
 ## Log Field Schema
 
