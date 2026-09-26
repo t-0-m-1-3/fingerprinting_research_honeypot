@@ -1,9 +1,18 @@
-"""JA3/JA4 extraction from PCAP files."""
+"""JA3/JA4 extraction from PCAP files.
 
+Can be run standalone:
+    python3 -m harness.extract captures/llm-tools-test.pcap
+    python3 -m harness.extract captures/*.pcap --dest-ip 172.30.0.2
+    python3 -m harness.extract captures/*.pcap --ip-map '{"172.30.0.75":"hackingbuddygpt"}'
+"""
+
+import argparse
 import csv
 import io
 import json
 import subprocess
+import sys
+from collections import defaultdict
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -162,3 +171,60 @@ def correlate_fingerprints(
         tool_data["ja4_strings"] = sorted(tool_data["ja4_strings"])
 
     return results
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Extract JA4 fingerprints from PCAP files",
+    )
+    parser.add_argument("pcaps", nargs="+", help="PCAP file(s) to analyze")
+    parser.add_argument("--dest-ip", help="Filter to traffic destined for this IP")
+    parser.add_argument(
+        "--ip-map", help='JSON mapping source IPs to tool names, e.g. \'{"172.30.0.75":"hackingbuddygpt"}\'',
+    )
+    parser.add_argument("--format", choices=["table", "json"], default="table")
+    args = parser.parse_args()
+
+    ip_map = json.loads(args.ip_map) if args.ip_map else {}
+
+    for pcap_file in args.pcaps:
+        pcap_path = Path(pcap_file)
+        if not pcap_path.exists():
+            print(f"ERROR: {pcap_path} not found", file=sys.stderr)
+            continue
+
+        print(f"\n=== {pcap_path.name} ===")
+        ja4_by_ip = extract_ja4_from_pcap(pcap_path, dest_ip=args.dest_ip)
+
+        if not ja4_by_ip:
+            print("  No JA4 fingerprints found.")
+            continue
+
+        # Deduplicate: group unique JA4s per source IP
+        summary: dict[str, dict] = {}
+        for ip, ja4_list in sorted(ja4_by_ip.items()):
+            unique_ja4s = sorted(set(ja4_list))
+            tool = ip_map.get(ip, ip)
+            summary[tool] = {
+                "source_ip": ip,
+                "sessions": len(ja4_list),
+                "unique_ja4s": unique_ja4s,
+            }
+
+        if args.format == "json":
+            print(json.dumps(summary, indent=2))
+        else:
+            for tool, data in summary.items():
+                label = tool if tool != data["source_ip"] else data["source_ip"]
+                print(f"\n  {label} ({data['sessions']} sessions)")
+                for ja4 in data["unique_ja4s"]:
+                    parts = ja4.split("_")
+                    if len(parts) == 3:
+                        print(f"    JA4: {ja4}")
+                        print(f"      cipher_hash: {parts[1]}  ext_hash: {parts[2]}")
+                    else:
+                        print(f"    {ja4}")
+
+
+if __name__ == "__main__":
+    main()
