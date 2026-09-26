@@ -27,9 +27,9 @@ LLM-powered scanners inherit their HTTP library's TLS fingerprint — they canno
 | hackingBuddyGPT | Python httpx | `t13i1712h1_ab0a1bf427ad_ecd0401ec68b` | `ab0a1bf427ad` | dirsearch |
 | strix | Python requests | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | rogue, wpscan |
 | rogue | Python requests + Chromium | `t13i1712h1_ab0a1bf427ad_8537cf56674e` | `ab0a1bf427ad` | strix, wpscan |
-| pentest-swarm-ai | Go crypto/tls | *(pending — Go fingerprint not yet captured)* | *(pending)* | nuclei/gobuster family |
+| pentest-swarm-ai | Go crypto/tls + curl/libcurl | `t13i131000_f57a46bbacb6_f50d94e863eb` (Go) / `t13i3111h2_e8f1e7e78f70_b26ce05bbdd6` (curl) | `f57a46bbacb6` / `e8f1e7e78f70` | Claude WebFetch, gobuster (Go) / dirb (curl) |
 
-All share cipher_hash `ab0a1bf427ad` (Python ssl module) — the most common bot fingerprint on the internet. **TLS fingerprinting alone cannot distinguish LLM scanners from traditional Python scanners.**
+The Python tools share cipher_hash `ab0a1bf427ad` (Python ssl module) — the most common bot fingerprint on the internet. pentest-swarm-ai produces Go crypto/tls or curl fingerprints depending on code path. **TLS fingerprinting alone cannot distinguish LLM scanners from traditional scanners using the same libraries.**
 
 ### 4.2 httpx vs requests Disambiguation
 
@@ -54,12 +54,15 @@ Python httpx and requests are distinguishable by JA4 ext_hash:
 
 ### 4.4 Dual-Fingerprint Signal
 
-Tools like rogue and xalgorix use both a Python/Go HTTP client AND a headless browser (Playwright/Chromium), producing **two distinct JA4 fingerprints from one source IP**:
+Multiple LLM tools produce **two distinct JA4 fingerprints from one source IP**:
 
-1. Python requests: `ab0a1bf427ad` (cipher_hash)
-2. Chromium BoringSSL: `8daaf6152771` (cipher_hash)
+| Tool | Fingerprint 1 | Fingerprint 2 |
+|------|---------------|---------------|
+| rogue | Python requests (`ab0a1bf427ad`) | Chromium/BoringSSL (`8daaf6152771`) |
+| pentest-swarm-ai | Go crypto/tls (`f57a46bbacb6`) | curl/libcurl (`e8f1e7e78f70`) |
+| xalgorix | Go crypto/tls (`f57a46bbacb6`) | Chromium/BoringSSL (expected) |
 
-No legitimate browser-based application also makes raw Python HTTP requests from the same IP. Seeing both fingerprints is a strong indicator.
+No legitimate single application mixes HTTP library stacks. Seeing two different cipher_hashes from the same IP is a strong indicator of a multi-component scanning tool.
 
 ## 5. Blind Spots and Assumptions
 
@@ -155,7 +158,7 @@ index=zeek sourcetype=zeek:ssl ja4_c="ab0a1bf427ad"
 ### Splunk SPL (Dual-Fingerprint Detection)
 
 ```spl
-| Detect dual-fingerprint tools (Python + Chromium from same IP)
+| Detect dual-fingerprint tools (multiple TLS stacks from same IP)
 
 index=zeek sourcetype=zeek:ssl
 | stats dc(ja4_c) AS unique_cipher_hashes
@@ -163,8 +166,10 @@ index=zeek sourcetype=zeek:ssl
         count AS total_sessions
         BY id_orig_h
 | where unique_cipher_hashes >= 2
-| where match(cipher_hashes, "ab0a1bf427ad") AND match(cipher_hashes, "8daaf6152771")
-| table id_orig_h, total_sessions, cipher_hashes
+| eval python_chromium = if(match(cipher_hashes, "ab0a1bf427ad") AND match(cipher_hashes, "8daaf6152771"), "yes", "no")
+| eval go_curl = if(match(cipher_hashes, "f57a46bbacb6") AND match(cipher_hashes, "e8f1e7e78f70"), "yes", "no")
+| where python_chromium="yes" OR go_curl="yes"
+| table id_orig_h, total_sessions, cipher_hashes, python_chromium, go_curl
 ```
 
 ### Elastic KQL

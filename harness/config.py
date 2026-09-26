@@ -369,7 +369,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         category="cat7-llm-cloud",
         dockerfile="xalgorix.Dockerfile",
         scan_command=[
-            "xalgorix", "scan", "{target_url}",
+            "xalgorix", "-t", "{target_url}",
         ],
         static_ip="172.30.0.82",
         timeout_seconds=600,

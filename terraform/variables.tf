@@ -77,7 +77,7 @@ variable "deploy_tools" {
       llm_api_domains = ["api.anthropic.com"]
       api_key_var     = "anthropic_api_key"
       docker_image    = "harness-xalgorix:latest"
-      scan_command    = "xalgorix scan https://HONEYPOT_IP:8443"
+      scan_command    = "xalgorix -t https://HONEYPOT_IP:8443"
     }
   }
 }
